@@ -27,4 +27,4 @@ package-dir = { "ad_review_env" = ".", "ad_review_env.server" = "server" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["ad_review_env"]

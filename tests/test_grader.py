@@ -1,6 +1,6 @@
 """Tests for grader.py — scoring logic correctness."""
 
-from grader import grade
+from ad_review_env.grader import grade
 
 
 def _make_gold(decision="APPROVE", iab="IAB_SAFE", garm="GARM_SAFE",

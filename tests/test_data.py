@@ -1,7 +1,7 @@
 """Tests for data.py — dataset integrity and structure."""
 
-from data import CONTENT_ITEMS, CONTENT_INDEX
-from models import IAB_CATEGORIES, GARM_CATEGORIES
+from ad_review_env.data import CONTENT_ITEMS, CONTENT_INDEX
+from ad_review_env.models import IAB_CATEGORIES, GARM_CATEGORIES
 
 
 def test_dataset_has_30_items():

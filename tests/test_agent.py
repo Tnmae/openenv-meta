@@ -1,8 +1,8 @@
 """Tests for agent.py — smart agent scoring and correctness."""
 
-from data import CONTENT_ITEMS
-from grader import grade
-from agent import smart_agent, evaluate_all
+from ad_review_env.data import CONTENT_ITEMS
+from ad_review_env.grader import grade
+from ad_review_env.agent import smart_agent, evaluate_all
 
 
 class TestSmartAgentOverall:

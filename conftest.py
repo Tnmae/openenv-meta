@@ -1,23 +1,15 @@
-"""conftest.py — configure pytest to import modules directly."""
+"""Root conftest — create openenv stubs BEFORE any package imports."""
 
 import sys
 import os
 import types
+from typing import Optional
 
-# Add the ad_review_env directory so we can import data, grader, agent directly
-ad_review_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-ad_review_dir = os.path.normpath(ad_review_dir)
-if ad_review_dir not in sys.path:
-    sys.path.insert(0, ad_review_dir)
+# Must create openenv stubs before pytest discovers ad_review_env/__init__.py,
+# which does `from .client import AdReviewEnv` → `from openenv.core import EnvClient`.
 
-# Provide stubs for openenv if not installed
 if "openenv" not in sys.modules:
     from pydantic import BaseModel, ConfigDict
-    from typing import Optional, Generic, TypeVar
-
-    T = TypeVar("T")
-    U = TypeVar("U")
-    V = TypeVar("V")
 
     class _Action(BaseModel):
         model_config = ConfigDict(extra="forbid", validate_assignment=True)
@@ -61,7 +53,6 @@ if "openenv" not in sys.modules:
         from fastapi import FastAPI
         return FastAPI()
 
-    # Build module tree
     openenv = types.ModuleType("openenv")
     core = types.ModuleType("openenv.core")
     env_server = types.ModuleType("openenv.core.env_server")

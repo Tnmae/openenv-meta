@@ -147,24 +147,26 @@ python -m pytest tests/ -v
 ## Project Structure
 
 ```
-ad_review_env/
-├── __init__.py          # Module exports
-├── models.py            # AdReviewAction + AdReviewObservation (Pydantic)
-├── data.py              # 30 curated UGC items with gold labels
-├── grader.py            # Deterministic reward grader
-├── agent.py             # Smart contextual review agent (~0.996 score)
-├── client.py            # AdReviewEnv WebSocket client
-├── baseline.py          # Keyword-based baseline agent
-├── openenv.yaml         # OpenEnv manifest
-├── pyproject.toml       # Project metadata
-├── server/
-│   ├── environment.py   # Core RL environment logic
-│   ├── app.py           # FastAPI app + hackathon endpoints + web dashboard
-│   └── Dockerfile       # Container image
-└── tests/
-    ├── conftest.py      # Test configuration + openenv stubs
-    ├── test_data.py     # Dataset integrity tests
-    ├── test_grader.py   # Grader scoring logic tests
-    ├── test_agent.py    # Smart agent correctness tests
-    └── test_models.py   # Pydantic model validation tests
+openenv-meta/
+├── conftest.py              # Pytest openenv stubs (for offline testing)
+├── tests/
+│   ├── test_data.py         # Dataset integrity tests
+│   ├── test_grader.py       # Grader scoring logic tests
+│   ├── test_agent.py        # Smart agent correctness tests
+│   └── test_models.py       # Pydantic model validation tests
+└── ad_review_env/
+    ├── __init__.py           # Module exports
+    ├── models.py             # AdReviewAction + AdReviewObservation (Pydantic)
+    ├── data.py               # 30 curated UGC items with gold labels
+    ├── grader.py             # Deterministic reward grader
+    ├── agent.py              # Smart contextual review agent (~0.996 score)
+    ├── client.py             # AdReviewEnv WebSocket client
+    ├── baseline.py           # Keyword-based baseline agent
+    ├── openenv.yaml          # OpenEnv manifest
+    ├── pyproject.toml        # Project metadata
+    └── server/
+        ├── environment.py    # Core RL environment logic
+        ├── app.py            # FastAPI app + endpoints
+        ├── dashboard.html    # Interactive web dashboard
+        └── Dockerfile        # Container image
 ```

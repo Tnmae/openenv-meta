@@ -1,23 +1,7 @@
 """Tests for models.py — Pydantic model validation."""
 
 import pytest
-
-# Skip model instantiation tests if openenv is not installed
-try:
-    from models import AdReviewAction, AdReviewObservation, IAB_CATEGORIES, GARM_CATEGORIES
-    HAS_OPENENV = True
-except ImportError:
-    HAS_OPENENV = False
-    # Fallback: import just the category lists from data to still test something
-    IAB_CATEGORIES = [
-        "IAB_SAFE", "IAB_ADULT", "IAB_VIOLENCE", "IAB_HATE_SPEECH", "IAB_ILLEGAL",
-        "IAB_MISINFORMATION", "IAB_PROFANITY", "IAB_DRUGS", "IAB_GAMBLING", "IAB_CONTROVERSIAL",
-    ]
-    GARM_CATEGORIES = [
-        "GARM_SAFE", "GARM_ADULT_EXPLICIT", "GARM_ARMS_AMMUNITION", "GARM_CRIME_HARMFUL",
-        "GARM_DEATH_INJURY", "GARM_HATE_SPEECH", "GARM_OBSCENITY_PROFANITY",
-        "GARM_ONLINE_PIRACY", "GARM_SPAM_HARMFUL", "GARM_TERRORISM",
-    ]
+from ad_review_env.models import AdReviewAction, AdReviewObservation, IAB_CATEGORIES, GARM_CATEGORIES
 
 
 class TestCategories:
@@ -40,7 +24,6 @@ class TestCategories:
         assert len(GARM_CATEGORIES) == len(set(GARM_CATEGORIES))
 
 
-@pytest.mark.skipif(not HAS_OPENENV, reason="openenv not installed")
 class TestAdReviewAction:
     def test_valid_action(self):
         action = AdReviewAction(
@@ -98,7 +81,6 @@ class TestAdReviewAction:
             )
 
 
-@pytest.mark.skipif(not HAS_OPENENV, reason="openenv not installed")
 class TestAdReviewObservation:
     def test_valid_observation(self):
         obs = AdReviewObservation(

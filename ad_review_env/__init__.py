@@ -8,7 +8,7 @@
 
 from .client import AdReviewEnv
 from .models import AdReviewAction, AdReviewObservation
-from .agent import smart_agent, evaluate_all
+from .agent import smart_agent, evaluate_all, evaluate_agent
 
 __all__ = [
     "AdReviewAction",
@@ -16,4 +16,5 @@ __all__ = [
     "AdReviewEnv",
     "smart_agent",
     "evaluate_all",
+    "evaluate_agent",
 ]
