@@ -4,13 +4,13 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""My Env Environment."""
+"""Brand-Safe Ad Review Environment for UGC content moderation."""
 
-from .client import MyEnv
-from .models import MyAction, MyObservation
+from .client import AdReviewEnv
+from .models import AdReviewAction, AdReviewObservation
 
 __all__ = [
-    "MyAction",
-    "MyObservation",
-    "MyEnv",
+    "AdReviewAction",
+    "AdReviewObservation",
+    "AdReviewEnv",
 ]
