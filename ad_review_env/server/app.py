@@ -15,40 +15,46 @@ Auto-generated endpoints (via create_app):
     GET  /health      — health check
     WS   /ws          — WebSocket for persistent sessions
 
-Hackathon endpoints (bolted on):
+Hackathon endpoints:
     GET  /tasks       — sample tasks for evaluation
     POST /grader      — standalone grader endpoint
     GET  /baseline    — baseline agent demonstration
+    GET  /evaluate    — batch evaluation (smart or baseline)
+    GET  /web         — interactive dashboard
 """
+
+import os
+import random
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from fastapi import HTTPException
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel, Field
 
 try:
     from openenv.core.env_server.http_server import create_app
 except Exception as e:  # pragma: no cover
-    raise ImportError(
-        "openenv is required. Install with: uv sync"
-    ) from e
+    raise ImportError("openenv is required. Install with: uv sync") from e
 
 try:
     from ..models import AdReviewAction, AdReviewObservation
     from ..data import CONTENT_ITEMS, CONTENT_INDEX
     from ..grader import grade
+    from ..agent import smart_agent, evaluate_agent
     from .environment import AdReviewEnvironment
 except ImportError:
     from models import AdReviewAction, AdReviewObservation
     from data import CONTENT_ITEMS, CONTENT_INDEX
     from grader import grade
+    from agent import smart_agent, evaluate_agent
     from server.environment import AdReviewEnvironment
-
-import random
-from typing import Any, Dict, List, Optional
-
-from fastapi import HTTPException
-from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
 # Core app — auto-generates /reset /step /state /schema /health /ws /docs
 # ---------------------------------------------------------------------------
+
 app = create_app(
     AdReviewEnvironment,
     AdReviewAction,
@@ -59,211 +65,83 @@ app = create_app(
 
 
 # ---------------------------------------------------------------------------
-# Hackathon endpoint 1: GET /tasks
-# Returns a sample of content items for evaluation
+# Shared helpers
 # ---------------------------------------------------------------------------
-@app.get("/tasks", tags=["Hackathon"])
-def get_tasks(
-    n: int = 5,
-    difficulty: Optional[str] = None,
-    seed: Optional[int] = None,
-) -> Dict[str, Any]:
-    """
-    Return a sample of UGC content items for agent evaluation.
 
-    Args:
-        n: Number of tasks to return (1-30, default 5)
-        difficulty: Filter by 'easy', 'medium', or 'hard' (optional)
-        seed: Random seed for reproducible sampling (optional)
-    """
-    if not 1 <= n <= 30:
-        raise HTTPException(status_code=400, detail="n must be between 1 and 30")
-
-    pool = CONTENT_ITEMS
-    if difficulty:
-        if difficulty not in ("easy", "medium", "hard"):
-            raise HTTPException(status_code=400, detail="difficulty must be easy, medium, or hard")
-        pool = [item for item in pool if item["difficulty"] == difficulty]
-
-    rng = random.Random(seed)
-    sample = rng.sample(pool, min(n, len(pool)))
-
-    # Strip gold labels from task presentation
-    tasks = [
-        {
-            "content_id": item["content_id"],
-            "content_text": item["content_text"],
-            "content_type": item["content_type"],
-            "platform": item["platform"],
-            "difficulty": item["difficulty"],
-        }
-        for item in sample
-    ]
-
-    return {
-        "tasks": tasks,
-        "count": len(tasks),
-        "total_available": len(pool),
-    }
+def _filter_by_difficulty(
+    pool: List[Dict[str, Any]], difficulty: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Filter content items by difficulty, raising 400 on invalid values."""
+    if not difficulty:
+        return pool
+    if difficulty not in ("easy", "medium", "hard"):
+        raise HTTPException(status_code=400, detail="difficulty must be easy, medium, or hard")
+    return [item for item in pool if item["difficulty"] == difficulty]
 
 
-# ---------------------------------------------------------------------------
-# Hackathon endpoint 2: POST /grader
-# Standalone grader — accepts action + content_id, returns scored result
-# ---------------------------------------------------------------------------
-class GraderRequest(BaseModel):
-    content_id: str = Field(..., description="Content ID from /tasks")
-    decision: str = Field(..., description="APPROVE, REJECT, or ESCALATE")
-    iab_category: str = Field(..., description="IAB Content Taxonomy category")
-    garm_category: str = Field(..., description="GARM Brand Safety Floor category")
-    risk_level: str = Field(..., description="LOW, MEDIUM, HIGH, or CRITICAL")
-    reasoning: str = Field(..., description="Explanation of the decision")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score [0,1]")
-    flagged_elements: List[str] = Field(default_factory=list)
-
-
-@app.post("/grader", tags=["Hackathon"])
-def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
-    """
-    Grade a review decision against gold labels.
-
-    Submit your decision for a content_id and receive a detailed score breakdown.
-    """
-    gold = CONTENT_INDEX.get(request.content_id)
-    if gold is None:
+def _lookup_content(content_id: str) -> Dict[str, Any]:
+    """Look up a content item by ID, raising 404 if not found."""
+    item = CONTENT_INDEX.get(content_id)
+    if item is None:
         raise HTTPException(
             status_code=404,
-            detail=f"content_id '{request.content_id}' not found. Use GET /tasks to get valid IDs.",
+            detail=f"content_id '{content_id}' not found. Use GET /tasks to get valid IDs.",
         )
-
-    action_data = {
-        "decision": request.decision,
-        "iab_category": request.iab_category,
-        "garm_category": request.garm_category,
-        "risk_level": request.risk_level,
-        "reasoning": request.reasoning,
-        "confidence": request.confidence,
-        "flagged_elements": request.flagged_elements,
-    }
-
-    total_reward, scores, feedback = grade(action_data, gold)
-
-    return {
-        "content_id": request.content_id,
-        "difficulty": gold["difficulty"],
-        "your_decision": request.decision,
-        "gold_decision": gold["gold_decision"],
-        "scores": scores,
-        "total_reward": total_reward,
-        "feedback": feedback,
-    }
+    return item
 
 
-# ---------------------------------------------------------------------------
-# Hackathon endpoint 3: GET /baseline
-# Demonstrates a simple rule-based baseline agent
-# ---------------------------------------------------------------------------
-@app.get("/baseline", tags=["Hackathon"])
-def baseline_demo(content_id: Optional[str] = None, seed: Optional[int] = 42) -> Dict[str, Any]:
-    """
-    Run a simple keyword-based baseline agent on a content item.
-
-    Demonstrates the environment API and provides a performance benchmark.
-    If content_id is not provided, a random item is selected.
-    """
-    if content_id:
-        item = CONTENT_INDEX.get(content_id)
-        if item is None:
-            raise HTTPException(status_code=404, detail=f"content_id '{content_id}' not found")
-    else:
-        rng = random.Random(seed)
-        item = rng.choice(CONTENT_ITEMS)
-
-    # Simple keyword-based baseline
-    action = _baseline_agent(item["content_text"])
-
-    action_data = {
-        "decision": action["decision"],
-        "iab_category": action["iab_category"],
-        "garm_category": action["garm_category"],
-        "risk_level": action["risk_level"],
-        "reasoning": action["reasoning"],
-        "confidence": action["confidence"],
-        "flagged_elements": action["flagged_elements"],
-    }
-
-    total_reward, scores, feedback = grade(action_data, item)
-
+def _strip_gold_labels(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a content item without gold labels (safe for public display)."""
     return {
         "content_id": item["content_id"],
         "content_text": item["content_text"],
+        "content_type": item["content_type"],
+        "platform": item["platform"],
         "difficulty": item["difficulty"],
-        "baseline_action": action,
-        "gold_decision": item["gold_decision"],
-        "scores": scores,
-        "total_reward": total_reward,
-        "feedback": feedback,
-        "note": "Keyword-based baseline. A well-tuned LLM agent should significantly outperform this.",
     }
 
 
-def _baseline_agent(text: str) -> Dict[str, Any]:
-    """
-    Simple keyword-based baseline agent.
-    Scans for red-flag keywords and makes a heuristic decision.
+# ---------------------------------------------------------------------------
+# Baseline agent
+# ---------------------------------------------------------------------------
+
+_CRITICAL_KW = ["kill", "murder", "terrorist", "bomb", "rape", "child porn", "cp ", "slur"]
+_REJECT_KW = [
+    "f***", "fuck", "shit", "bitch", "hate", "illegal", "pirat", "xanax",
+    "no prescription", "18+", "adult content", "explicit", "graphic violence",
+    "knockouts", "brutal", "proud boys", "cancer cure", "doctors don't want",
+]
+_ESCALATE_KW = [
+    "psilocybin", "microdosing", "crypto", "gambling", "jackpot", "controversial",
+    "leaked", "government lying", "wake up sheeple", "gun control", "abortion",
+]
+
+
+def baseline_agent(text: str, content_type: str = "", platform: str = "") -> Dict[str, Any]:
+    """Simple keyword-based baseline agent.
+
+    Accepts the same (text, content_type, platform) signature as smart_agent
+    so it can be passed directly to evaluate_agent().
     """
     text_lower = text.lower()
+    flagged = [kw for kw in _CRITICAL_KW + _REJECT_KW + _ESCALATE_KW if kw in text_lower]
 
-    # Red-flag keyword sets
-    critical_keywords = ["kill", "murder", "terrorist", "bomb", "rape", "child porn", "cp ", "slur"]
-    reject_keywords = [
-        "f***", "fuck", "shit", "bitch", "hate", "illegal", "pirat", "xanax",
-        "no prescription", "18+", "adult content", "explicit", "graphic violence",
-        "knockouts", "brutal", "proud boys", "cancer cure", "doctors don't want"
-    ]
-    escalate_keywords = [
-        "psilocybin", "microdosing", "crypto", "gambling", "jackpot", "controversial",
-        "leaked", "government lying", "wake up sheeple", "gun control", "abortion"
-    ]
-
-    flagged = []
-
-    for kw in critical_keywords:
-        if kw in text_lower:
-            flagged.append(kw)
-
-    for kw in reject_keywords:
-        if kw in text_lower:
-            flagged.append(kw)
-
-    for kw in escalate_keywords:
-        if kw in text_lower:
-            flagged.append(kw)
-
-    if any(kw in text_lower for kw in critical_keywords):
-        decision = "REJECT"
-        iab = "IAB_HATE_SPEECH"
-        garm = "GARM_HATE_SPEECH"
-        risk = "CRITICAL"
-        confidence = 0.9
-    elif any(kw in text_lower for kw in reject_keywords):
-        decision = "REJECT"
-        iab = "IAB_PROFANITY"
-        garm = "GARM_OBSCENITY_PROFANITY"
-        risk = "HIGH"
-        confidence = 0.75
-    elif any(kw in text_lower for kw in escalate_keywords):
-        decision = "ESCALATE"
-        iab = "IAB_CONTROVERSIAL"
-        garm = "GARM_SAFE"
-        risk = "MEDIUM"
-        confidence = 0.6
+    if any(kw in text_lower for kw in _CRITICAL_KW):
+        decision, iab, garm, risk, confidence = (
+            "REJECT", "IAB_HATE_SPEECH", "GARM_HATE_SPEECH", "CRITICAL", 0.9
+        )
+    elif any(kw in text_lower for kw in _REJECT_KW):
+        decision, iab, garm, risk, confidence = (
+            "REJECT", "IAB_PROFANITY", "GARM_OBSCENITY_PROFANITY", "HIGH", 0.75
+        )
+    elif any(kw in text_lower for kw in _ESCALATE_KW):
+        decision, iab, garm, risk, confidence = (
+            "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", 0.6
+        )
     else:
-        decision = "APPROVE"
-        iab = "IAB_SAFE"
-        garm = "GARM_SAFE"
-        risk = "LOW"
-        confidence = 0.8
+        decision, iab, garm, risk, confidence = (
+            "APPROVE", "IAB_SAFE", "GARM_SAFE", "LOW", 0.8
+        )
 
     reasoning = (
         f"Keyword scan: {'flagged ' + str(flagged[:3]) if flagged else 'no red-flag keywords detected'}. "
@@ -281,8 +159,143 @@ def _baseline_agent(text: str) -> Dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# GET /tasks — sample tasks for evaluation
+# ---------------------------------------------------------------------------
+
+@app.get("/tasks", tags=["Hackathon"])
+def get_tasks(
+    n: int = 5,
+    difficulty: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Return a sample of UGC content items for agent evaluation."""
+    if not 1 <= n <= 30:
+        raise HTTPException(status_code=400, detail="n must be between 1 and 30")
+
+    pool = _filter_by_difficulty(CONTENT_ITEMS, difficulty)
+    rng = random.Random(seed)
+    sample = rng.sample(pool, min(n, len(pool)))
+
+    return {
+        "tasks": [_strip_gold_labels(item) for item in sample],
+        "count": len(sample),
+        "total_available": len(pool),
+    }
+
+
+# ---------------------------------------------------------------------------
+# POST /grader — standalone grader
+# ---------------------------------------------------------------------------
+
+class GraderRequest(BaseModel):
+    """Request body for the /grader endpoint."""
+    content_id: str = Field(..., description="Content ID from /tasks")
+    decision: str = Field(..., description="APPROVE, REJECT, or ESCALATE")
+    iab_category: str = Field(..., description="IAB Content Taxonomy category")
+    garm_category: str = Field(..., description="GARM Brand Safety Floor category")
+    risk_level: str = Field(..., description="LOW, MEDIUM, HIGH, or CRITICAL")
+    reasoning: str = Field(..., description="Explanation of the decision")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score [0,1]")
+    flagged_elements: List[str] = Field(default_factory=list)
+
+
+@app.post("/grader", tags=["Hackathon"])
+def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
+    """Grade a review decision against gold labels."""
+    gold = _lookup_content(request.content_id)
+
+    action_data = request.model_dump(exclude={"content_id"})
+    total_reward, scores, feedback = grade(action_data, gold)
+
+    return {
+        "content_id": request.content_id,
+        "difficulty": gold["difficulty"],
+        "your_decision": request.decision,
+        "gold_decision": gold["gold_decision"],
+        "scores": scores,
+        "total_reward": total_reward,
+        "feedback": feedback,
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /baseline — baseline agent demo
+# ---------------------------------------------------------------------------
+
+@app.get("/baseline", tags=["Hackathon"])
+def baseline_demo(
+    content_id: Optional[str] = None, seed: Optional[int] = 42,
+) -> Dict[str, Any]:
+    """Run the keyword-based baseline agent on a content item."""
+    if content_id:
+        item = _lookup_content(content_id)
+    else:
+        item = random.Random(seed).choice(CONTENT_ITEMS)
+
+    action = baseline_agent(item["content_text"])
+    total_reward, scores, feedback = grade(action, item)
+
+    return {
+        "content_id": item["content_id"],
+        "content_text": item["content_text"],
+        "difficulty": item["difficulty"],
+        "baseline_action": action,
+        "gold_decision": item["gold_decision"],
+        "scores": scores,
+        "total_reward": total_reward,
+        "feedback": feedback,
+        "note": "Keyword-based baseline. A well-tuned LLM agent should significantly outperform this.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# GET /evaluate — batch evaluation
+# ---------------------------------------------------------------------------
+
+_AGENTS = {
+    "smart": smart_agent,
+    "baseline": baseline_agent,
+}
+
+
+@app.get("/evaluate", tags=["Hackathon"])
+def evaluate_endpoint(
+    agent: str = "smart",
+    difficulty: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Run a batch evaluation of an agent across all content items."""
+    if agent not in _AGENTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"agent must be one of {list(_AGENTS.keys())}",
+        )
+
+    pool = _filter_by_difficulty(CONTENT_ITEMS, difficulty)
+    result = evaluate_agent(pool, grade, agent_fn=_AGENTS[agent])
+    result["agent"] = agent
+    return result
+
+
+# ---------------------------------------------------------------------------
+# GET /web — interactive dashboard
+# ---------------------------------------------------------------------------
+
+_DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
+
+
+@app.get("/web", tags=["Dashboard"], response_class=HTMLResponse)
+def web_dashboard():
+    """Interactive web dashboard for the Brand-Safe Ad Review environment."""
+    return _DASHBOARD_PATH.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
 def main(host: str = "0.0.0.0", port: int = 8000):
-    """Entry point for uv run or python -m."""
+    """Entry point for ``uv run server`` or ``python -m``."""
     import uvicorn
     uvicorn.run(app, host=host, port=port)
 
