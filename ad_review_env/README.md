@@ -100,6 +100,16 @@ with AdReviewEnv(base_url="http://localhost:8000") as env:
 | `/web` | GET | Interactive web dashboard |
 | `/docs` | GET | Interactive API documentation |
 
+## Docker
+
+```bash
+cd ad_review_env
+docker build -t ad-review-env .
+docker run -p 8000:8000 ad-review-env
+```
+
+Then visit http://localhost:8000/web for the dashboard, or http://localhost:8000/docs for the API docs.
+
 ## Running Locally
 
 ```bash
@@ -119,6 +129,30 @@ A well-tuned LLM agent should target **> 0.75**.
 ```bash
 python baseline.py
 ```
+
+## LLM Inference Script
+
+The `inference.py` script (at the repo root) runs a language model against all 30 tasks:
+
+```bash
+# Required environment variables
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="your-model-name"
+export HF_TOKEN="your-hf-token"
+export ENV_URL="http://localhost:8000"  # or your HF Space URL
+
+# Install inference dependencies
+pip install openai requests
+
+# Run inference (< 20 min, works on vcpu=2 / 8GB RAM)
+python inference.py
+```
+
+The script:
+1. Fetches all 30 tasks from the environment
+2. Uses the OpenAI-compatible client to get LLM review decisions
+3. Grades each decision via the `/grader` endpoint
+4. Reports per-difficulty and overall scores
 
 ## Smart Agent
 
@@ -148,6 +182,7 @@ python -m pytest tests/ -v
 
 ```
 openenv-meta/
+├── inference.py              # LLM inference script (OpenAI client)
 ├── conftest.py              # Pytest openenv stubs (for offline testing)
 ├── tests/
 │   ├── test_data.py         # Dataset integrity tests
@@ -155,6 +190,7 @@ openenv-meta/
 │   ├── test_agent.py        # Smart agent correctness tests
 │   └── test_models.py       # Pydantic model validation tests
 └── ad_review_env/
+    ├── Dockerfile            # Docker container (HF Spaces)
     ├── __init__.py           # Module exports
     ├── models.py             # AdReviewAction + AdReviewObservation (Pydantic)
     ├── data.py               # 30 curated UGC items with gold labels
@@ -162,11 +198,11 @@ openenv-meta/
     ├── agent.py              # Smart contextual review agent (~0.996 score)
     ├── client.py             # AdReviewEnv WebSocket client
     ├── baseline.py           # Keyword-based baseline agent
-    ├── openenv.yaml          # OpenEnv manifest
+    ├── openenv.yaml          # OpenEnv manifest (with 3 task definitions)
     ├── pyproject.toml        # Project metadata
     └── server/
         ├── environment.py    # Core RL environment logic
         ├── app.py            # FastAPI app + endpoints
         ├── dashboard.html    # Interactive web dashboard
-        └── Dockerfile        # Container image
+        └── Dockerfile        # Container image (alternate location)
 ```

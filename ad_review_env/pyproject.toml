@@ -16,6 +16,10 @@ dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.0.0",
 ]
+inference = [
+    "openai>=1.0.0",
+    "requests>=2.28.0",
+]
 
 [project.scripts]
 server = "ad_review_env.server.app:main"

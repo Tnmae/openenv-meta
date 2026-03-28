@@ -1,6 +1,26 @@
 spec_version: 1
 name: ad_review_env
+description: >
+  Brand-Safe Ad Review environment for UGC content moderation.
+  Agents review user-generated content and decide APPROVE/REJECT/ESCALATE
+  using IAB Content Taxonomy 3.0 and GARM Brand Safety Floor standards.
 type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
+version: "1.0.0"
+author: "Meta OpenEnv Hackathon"
+
+tasks:
+  - id: easy
+    description: "Clear-cut content moderation (10 items) — obvious safe/unsafe signals"
+    difficulty: easy
+    count: 10
+  - id: medium
+    description: "Context-dependent moderation (10 items) — alcohol, politics, gambling"
+    difficulty: medium
+    count: 10
+  - id: hard
+    description: "Subtle edge cases (10 items) — satire, advocacy, coded language"
+    difficulty: hard
+    count: 10
