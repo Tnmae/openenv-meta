@@ -1,15 +1,4 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
-"""
-30 curated UGC content items with gold labels for brand-safe ad review.
-
-Difficulty distribution: 10 easy, 10 medium, 10 hard.
-Gold labels follow IAB Content Taxonomy 3.0 and GARM Brand Safety Floor standards.
-"""
+"""30 curated UGC content items with gold labels for brand-safe ad review."""
 
 from typing import Any, Dict, List
 
@@ -27,6 +16,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @bakingwithbella, created 2019-03-14, 45K followers. Food/recipe niche. Zero content warnings. Verified food blogger with brand partnerships (KitchenAid, King Arthur Flour).",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 98% baking/recipe posts. Engagement rate consistent with organic food content creators.",
         "notes": "Clearly safe lifestyle content",
     },
     {
@@ -39,6 +30,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @mileswithmike, created 2020-06-01, 22K followers. Fitness influencer, marathon runner. Clean moderation history — zero warnings, zero strikes.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% fitness/wellness posts. Frequently tagged by running shoe brands for ambassador content.",
         "notes": "Fitness/wellness content, universally brand-safe",
     },
     {
@@ -51,6 +44,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_PROFANITY",
         "gold_garm_category": "GARM_OBSCENITY_PROFANITY",
         "gold_risk_level": "HIGH",
+        "context_layer_1": "Account @jess_2007x, created 2024-01-10, 340 followers. Account age: 4 months. 2 prior warnings for profanity violations. No verified identity.",
+        "context_layer_2": "3 community reports for abusive language in past 30 days. No cross-platform flags. Content pattern: frequent emotional outbursts with profanity; no sustained harassment pattern.",
         "notes": "Profanity + violent language, clear reject",
     },
     {
@@ -63,6 +58,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_ILLEGAL",
         "gold_garm_category": "GARM_CRIME_HARMFUL",
         "gold_risk_level": "CRITICAL",
+        "context_layer_1": "Account @discountpharma_rx, created 2024-03-28, 12 followers. Flagged by DEA automated watchlist. Account matches known pharmacy spam signature. 4 prior accounts banned for identical activity.",
+        "context_layer_2": "87 community reports in 72 hours. Cross-platform flags: identical bio text detected on 6 other platforms. Linked to known international prescription drug spam ring per Trust & Safety intel.",
         "notes": "Illegal drug sales, immediate reject",
     },
     {
@@ -75,6 +72,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @trailsandtales, created 2018-11-20, 67K followers. Travel/outdoor niche. Brand ambassador for REI and Osprey. Zero moderation actions.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 95% nature/hiking photography. High engagement from outdoor recreation communities.",
         "notes": "Outdoor/nature content, universally safe",
     },
     {
@@ -87,6 +86,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_VIOLENCE",
         "gold_garm_category": "GARM_DEATH_INJURY",
         "gold_risk_level": "HIGH",
+        "context_layer_1": "Account @brutalKO_compilations, created 2023-08-05, 8.2K followers. Uploads exclusively gore and street fight compilations. 6 prior strikes for graphic violence.",
+        "context_layer_2": "142 community reports in past 90 days. Cross-platform flags: identical content posted on 3 gore-sharing sites. Related accounts form a violence content network flagged by Trust & Safety.",
         "notes": "Explicit violence, clear reject",
     },
     {
@@ -99,6 +100,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @goldenpaws_max, created 2020-02-14, 112K followers. Pet influencer with brand partnerships (Chewy, BarkBox). Zero content warnings. Verified pet content creator.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% pet training and dog lifestyle content. Consistent positive engagement metrics.",
         "notes": "Pet content, universally brand-safe",
     },
     {
@@ -111,6 +114,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_HATE_SPEECH",
         "gold_garm_category": "GARM_HATE_SPEECH",
         "gold_risk_level": "CRITICAL",
+        "context_layer_1": "Account @patriotdefender1488, created 2023-05-12, 890 followers. Account suspended twice previously for hate speech. Affiliated with known hate group per SPLC watchlist integration.",
+        "context_layer_2": "64 community reports in past 30 days. Cross-platform flags: banned from 3 other platforms for identical hate speech. Content pattern: 100% xenophobic and racially targeted posts.",
         "notes": "Explicit hate speech, immediate reject",
     },
     {
@@ -123,6 +128,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @studywithsara, created 2022-09-01, 15K followers. Student account, university-verified (.edu email). Content exclusively education and study tips. Zero warnings.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% study tips, productivity hacks, and exam prep content. Frequently shared in academic communities.",
         "notes": "Educational productivity content",
     },
     {
@@ -135,6 +142,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_ADULT",
         "gold_garm_category": "GARM_ADULT_EXPLICIT",
         "gold_risk_level": "CRITICAL",
+        "context_layer_1": "Account @exclusive_content_xx, created 2024-02-15, 2.1K followers. Linked to known adult content distribution ring. Banned from 4 other platforms for ToS violations involving explicit material.",
+        "context_layer_2": "210 community reports in 2 weeks. Cross-platform flags: identical account bio detected across 8 platforms. Network analysis links to 12 coordinated accounts in adult content spam operation.",
         "notes": "Explicit adult content solicitation",
     },
 
@@ -151,6 +160,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_MISINFORMATION",
         "gold_garm_category": "GARM_SPAM_HARMFUL",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @truthseeker_q, created 2021-07-19, 5.4K followers. Posts conspiracy-related content weekly. No verified sources ever cited. No professional or journalistic credentials on file.",
+        "context_layer_2": "18 community reports for misinformation in past 60 days. Cross-platform flags: shares content from known disinformation domains. Content pattern: escalating anti-government rhetoric with zero sourcing.",
         "notes": "Conspiracy/misinformation framing, brand risk",
     },
     {
@@ -163,6 +174,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @sommelierlucia, created 2017-05-22, 89K followers. Certified sommelier (Court of Master Sommeliers, Level 3). Active partnership with Tuscany Wine Tourism Board.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 90% professional wine education and travel. Engagement consistent with luxury travel and food creator norms.",
         "notes": "Alcohol in aspirational travel context — most brands approve",
     },
     {
@@ -175,6 +188,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_CONTROVERSIAL",
         "gold_garm_category": "GARM_HATE_SPEECH",
         "gold_risk_level": "HIGH",
+        "context_layer_1": "Account @firedup_opinions, created 2022-11-01, 3.8K followers. History of increasingly extreme political posts across multiple topics. Engagement-bait pattern detected (provocative framing + 'fight me').",
+        "context_layer_2": "34 community reports in past 30 days for inflammatory content. Cross-platform flags: similar engagement-bait posts on 2 other platforms. Content pattern: no substantive discussion, optimized for outrage clicks.",
         "notes": "Highly divisive political/social topic, brand risk",
     },
     {
@@ -187,6 +202,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @gamer_dave_reviews, created 2019-08-15, 156K subscribers. Verified gaming channel. Consistent game review content across AAA titles. Zero content warnings or strikes.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% game reviews and gameplay commentary. No real-world violence content; all references are to in-game mechanics.",
         "notes": "Gaming review — fictional violence in mainstream game context is brand-safe",
     },
     {
@@ -199,6 +216,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_MISINFORMATION",
         "gold_garm_category": "GARM_SPAM_HARMFUL",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @slimfast_secrets, created 2023-04-10, 11K followers. Account sells unregulated dietary supplements via affiliate links. Multiple FTC complaints filed for deceptive advertising claims.",
+        "context_layer_2": "52 community reports for misleading health claims. Cross-platform flags: identical weight-loss scam content on 4 platforms. Linked to supplement drop-shipping network flagged by consumer protection agencies.",
         "notes": "Health misinformation / predatory marketing pattern",
     },
     {
@@ -211,6 +230,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_DRUGS",
         "gold_garm_category": "GARM_CRIME_HARMFUL",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @mindful_healing_journey, created 2021-03-08, 9.2K followers. Mental health advocate. Posts primarily about therapy, mindfulness, and anxiety management. First time mentioning any controlled substance.",
+        "context_layer_2": "2 community reports on this specific post (substance mention). No prior reports on any other content. No cross-platform flags. Content pattern: 97% mental health support content; this post is an outlier.",
         "notes": "Illegal substance discussion but framed as mental health — escalate for human review",
     },
     {
@@ -223,6 +244,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_CONTROVERSIAL",
         "gold_garm_category": "GARM_SPAM_HARMFUL",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @politicalrage247, created 2022-06-30, 6.1K followers. Posts exclusively political attacks targeting officials across parties. No substantive policy discussion in post history.",
+        "context_layer_2": "22 community reports for harassment and inflammatory rhetoric in past 60 days. Cross-platform flags: similar attack content posted on 2 other platforms. Content pattern: 100% negative political commentary, zero constructive engagement.",
         "notes": "Political attack content, brand risk regardless of target",
     },
     {
@@ -235,6 +258,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_GAMBLING",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @jake_adventures, created 2020-10-05, 1.8K followers. Personal travel account. First gambling-related post ever. Post history is vacation photos, restaurants, and sightseeing.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: casual travel documentation. This is the only gambling-related post among 400+ lifetime posts. No affiliate links or promotional patterns detected.",
         "notes": "Gambling content — acceptable for some brands, not others. Escalate.",
     },
     {
@@ -247,6 +272,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @fermentation_lab, created 2019-12-01, 38K followers. Food science educator with M.S. in Nutrition Science. Content focuses on evidence-based food preparation and gut health.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 95% food science education with cited sources. Regularly links peer-reviewed nutrition studies. Recognized by platform as credentialed health educator.",
         "notes": "Health/DIY food content, clearly safe",
     },
     {
@@ -259,6 +286,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_ILLEGAL",
         "gold_garm_category": "GARM_ONLINE_PIRACY",
         "gold_risk_level": "HIGH",
+        "context_layer_1": "Account @free_movies_daily, created 2024-01-20, 4.7K followers. Shares piracy links daily. Part of a coordinated piracy distribution network identified by platform Trust & Safety.",
+        "context_layer_2": "96 community reports and 3 DMCA takedown notices in past 30 days. Cross-platform flags: identical piracy link-sharing detected on 5 other platforms. Network analysis links to 8 coordinated piracy accounts.",
         "notes": "Explicit copyright piracy promotion",
     },
 
@@ -275,6 +304,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_CONTROVERSIAL",
         "gold_garm_category": "GARM_DEATH_INJURY",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @nurse_rachel_icu, created 2018-04-12, 31K followers. Verified RN with 8 years ICU/trauma experience at Level 1 trauma center. Regularly posts medical education content and patient safety advocacy.",
+        "context_layer_2": "12 community reports on this post — split evenly between gun rights groups and gun control groups flagging it. No prior reports on other content. Content pattern: 85% medical education, 15% healthcare policy advocacy. Divisive but from a credentialed, legitimate voice.",
         "notes": "Legitimate advocacy but politically divisive — escalate for brand alignment check",
     },
     {
@@ -287,6 +318,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @never_forget_memorial, created 2016-01-27 (Holocaust Remembrance Day). Operated as a Holocaust memorial and historical education page. All content is historical remembrance, survivor stories, and anti-hate education.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% Holocaust remembrance and WWII historical content. Partnered with Holocaust museums and educational institutions. Endorsed by Anti-Defamation League.",
         "notes": "Historical/emotional content without specific political target — safe",
     },
     {
@@ -299,6 +332,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_MISINFORMATION",
         "gold_garm_category": "GARM_SPAM_HARMFUL",
         "gold_risk_level": "CRITICAL",
+        "context_layer_1": "Account @natural_healing_mama, created 2022-08-15, 14K followers. No medical credentials on file. Previously promoted anti-vaccination content (3 posts removed for medical misinformation). Sells unverified herbal supplements via affiliate links.",
+        "context_layer_2": "47 community reports in 48 hours on this post. Cross-platform flags: shares content from known medical misinformation domains. Content pattern: escalating anti-medicine rhetoric. Multiple oncology professionals have flagged this post as dangerous.",
         "notes": "Dangerous medical misinformation — rejecting chemo for unproven cure",
     },
     {
@@ -311,6 +346,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @sober_and_strong_jay, created 2020-01-01, 28K followers. Recovery and sobriety advocate. Account bio states '4 years sober.' Posts consistently use past experiences to inspire others on recovery journeys.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 90% sobriety advocacy and personal growth content. Frequently tagged by recovery community organizations. Past references are always framed as growth narratives.",
         "notes": "Vague reference to past behavior without explicit content — safe",
     },
     {
@@ -323,6 +360,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_HATE_SPEECH",
         "gold_garm_category": "GARM_TERRORISM",
         "gold_risk_level": "CRITICAL",
+        "context_layer_1": "Account @amerifirst_1776, created 2 days ago, 47 followers. Immediately began posting recruitment content upon creation. Linked to 5 previously suspended accounts via device fingerprint and IP correlation.",
+        "context_layer_2": "28 community reports in 48 hours. Cross-platform flags: identical recruitment language detected on 3 extremist forums. Account is part of a coordinated ban-evasion network flagged by Trust & Safety and FBI tip line.",
         "notes": "Designated extremist group recruitment — critical reject",
     },
     {
@@ -335,6 +374,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @rd_nutrition_facts, created 2019-06-10, 52K followers. Registered Dietitian (RD) credential verified. Shares evidence-based nutrition content and links peer-reviewed studies in most posts.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 92% evidence-based nutrition education. Disclaimer language used appropriately ('not for everyone'). No affiliate supplement links or unverified health claims.",
         "notes": "Personal diet journey — factual, no misinformation, brand-safe",
     },
     {
@@ -347,6 +388,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_CONTROVERSIAL",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "MEDIUM",
+        "context_layer_1": "Account @crypto_kid_lifestyle, age 19 (self-reported). Created 2023-06-01, 74K followers. Audience demographics: 68% ages 13-19. Promotes high-risk financial products including leveraged crypto trading and NFT drops.",
+        "context_layer_2": "31 community reports for targeting minors with financial content. Cross-platform flags: SEC complaint filed for unregistered securities promotion. Content pattern: glamorizes risky financial behavior to teen audience with no risk disclosures.",
         "notes": "Crypto promotion to young audience — financial risk framing, escalate",
     },
     {
@@ -359,6 +402,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @the_daily_snark, created 2017-09-15, 245K followers. Verified satire/comedy account. Bio explicitly states 'PARODY — nothing here is real.' Known satirist featured in comedy publications.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% satirical commentary and parody news. Consistently labeled as satire. Platform has designated this account under its satire/parody content policy.",
         "notes": "Clearly labeled satire with no harmful content",
     },
     {
@@ -371,6 +416,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_SAFE",
         "gold_garm_category": "GARM_SAFE",
         "gold_risk_level": "LOW",
+        "context_layer_1": "Account @kindness_starts_here, created 2019-04-22, 18K followers. Verified 501(c)(3) nonprofit account. Consistent charitable content including food drives, community events, and volunteer coordination.",
+        "context_layer_2": "No community reports. No cross-platform flags. Content pattern: 100% charitable and community service content. Recognized community partner by local government. Endorsed by United Way and Feeding America chapters.",
         "notes": "Charitable/community content — highly brand-safe",
     },
     {
@@ -383,6 +430,8 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "gold_iab_category": "IAB_CONTROVERSIAL",
         "gold_garm_category": "GARM_SPAM_HARMFUL",
         "gold_risk_level": "HIGH",
+        "context_layer_1": "Account @whistleblower_anon_x, created 2024-02-01, 920 followers. No journalistic credentials or media affiliation. Previous posts included fabricated 'leaked' documents later debunked by fact-checkers.",
+        "context_layer_2": "38 community reports in 24 hours. Cross-platform flags: account shares content from known disinformation networks. Content pattern: serial 'leak' posts with no verifiable sourcing. 2 prior posts removed after legal takedown requests for defamation.",
         "notes": "Potential defamation/misinformation about a brand — escalate for legal review",
     },
 ]
