@@ -550,7 +550,7 @@ def smart_agent(text: str, content_type: str = "", platform: str = "") -> Dict[s
 # ---------------------------------------------------------------------------
 
 AgentFn = Callable[[str, str, str], Dict[str, Any]]
-GradeFn = Callable[[Dict[str, Any], Dict[str, Any]], Tuple[float, Dict[str, float], str]]
+GradeFn = Callable[..., Tuple[float, Dict[str, float], str]]
 
 
 def evaluate_agent(
@@ -594,7 +594,7 @@ def evaluate_agent(
             item.get("content_type", ""),
             item.get("platform", ""),
         )
-        total, scores, feedback = grade_fn(action, item)
+        total, scores, feedback = grade_fn(action, item, steps_taken=1)
 
         all_scores.append(total)
         scores_by_difficulty[item["difficulty"]].append(total)

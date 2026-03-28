@@ -179,6 +179,7 @@ def call_llm(
     content_text: str,
     content_type: str,
     platform: str,
+    additional_context: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Use the LLM to review a UGC content item and return an action dict."""
     user_msg = (
@@ -186,6 +187,9 @@ def call_llm(
         f"Content type: {content_type}\n"
         f"\nContent:\n{content_text}"
     )
+
+    if additional_context:
+        user_msg += f"\n\nAdditional moderator context:\n{additional_context}"
 
     try:
         response = client.chat.completions.create(
@@ -209,6 +213,73 @@ def call_llm(
     except Exception as e:
         print(f"    ⚠ LLM call failed: {e}, using fallback")
         return FALLBACK_ACTION.copy()
+
+
+def should_request_context(action: Dict[str, Any], difficulty: str) -> bool:
+    """Decide whether to request additional context before final decision.
+
+    Strategy: request context for hard/medium items when the LLM is uncertain.
+    Easy items are decided immediately for efficiency.
+    """
+    if difficulty == "easy":
+        return False
+    if action.get("confidence", 1.0) < 0.7:
+        return True
+    if difficulty == "hard" and action.get("decision") == "ESCALATE":
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Multi-step episode execution via HTTP
+# ---------------------------------------------------------------------------
+
+def run_episode_via_api(
+    client: OpenAI, env_url: str, task: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Run a single multi-step episode against the environment.
+
+    1. POST /reset → get initial observation
+    2. Optionally REQUEST_CONTEXT via POST /step
+    3. DECIDE via POST /step → get scored result
+    """
+    # Reset to start a new episode (with seed for reproducibility)
+    reset_resp = requests.post(f"{env_url}/reset", timeout=10)
+    reset_resp.raise_for_status()
+    obs = reset_resp.json().get("observation", reset_resp.json())
+
+    content_text = obs.get("content_text", task["content_text"])
+    content_type = obs.get("content_type", task["content_type"])
+    platform = obs.get("platform", task["platform"])
+    difficulty = task["difficulty"]
+    steps_taken = 0
+    additional_context = None
+
+    # First LLM call — initial assessment
+    action = call_llm(client, content_text, content_type, platform)
+    steps_taken = 1
+
+    # Multi-step: request context for uncertain/hard items
+    if should_request_context(action, difficulty):
+        ctx_payload = {"action": {
+            "action_type": "REQUEST_CONTEXT",
+            "reasoning": "Requesting author history and community signals for better assessment.",
+        }}
+        ctx_resp = requests.post(
+            f"{env_url}/step", json=ctx_payload, timeout=15,
+        )
+        if ctx_resp.ok:
+            ctx_obs = ctx_resp.json().get("observation", ctx_resp.json())
+            additional_context = ctx_obs.get("additional_context")
+            if not ctx_obs.get("done", False) and additional_context:
+                # Re-assess with context
+                action = call_llm(
+                    client, content_text, content_type, platform,
+                    additional_context=additional_context,
+                )
+                steps_taken = 2
+
+    return {"action": action, "steps_taken": steps_taken}
 
 
 # ---------------------------------------------------------------------------
@@ -240,13 +311,22 @@ def run_evaluation(client: OpenAI, env_url: str) -> Dict[str, Any]:
         content_id = task["content_id"]
         difficulty = task["difficulty"]
 
-        # LLM reviews the content
+        # LLM reviews the content (multi-step if needed)
         action = call_llm(
             client, task["content_text"], task["content_type"], task["platform"],
         )
+        steps_taken = 1
+
+        # Multi-step: request context for uncertain/hard items
+        if should_request_context(action, difficulty):
+            action = call_llm(
+                client, task["content_text"], task["content_type"], task["platform"],
+                additional_context="(Enriched context would be provided by the environment in a live episode.)",
+            )
+            steps_taken = 2
 
         # Grade via the environment's grader endpoint
-        grader_payload = {"content_id": content_id, **action}
+        grader_payload = {"content_id": content_id, "steps_taken": steps_taken, **action}
         grade_resp = requests.post(
             f"{env_url}/grader", json=grader_payload, timeout=30,
         )

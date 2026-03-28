@@ -198,6 +198,7 @@ class GraderRequest(BaseModel):
     reasoning: str = Field(..., description="Explanation of the decision")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score [0,1]")
     flagged_elements: List[str] = Field(default_factory=list)
+    steps_taken: int = Field(default=1, ge=1, le=3, description="Steps agent took (1-3)")
 
 
 @app.post("/grader", tags=["Hackathon"])
@@ -205,8 +206,8 @@ def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
     """Grade a review decision against gold labels."""
     gold = _lookup_content(request.content_id)
 
-    action_data = request.model_dump(exclude={"content_id"})
-    total_reward, scores, feedback = grade(action_data, gold)
+    action_data = request.model_dump(exclude={"content_id", "steps_taken"})
+    total_reward, scores, feedback = grade(action_data, gold, steps_taken=request.steps_taken)
 
     return {
         "content_id": request.content_id,
@@ -216,6 +217,7 @@ def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
         "scores": scores,
         "total_reward": total_reward,
         "feedback": feedback,
+        "steps_taken": request.steps_taken,
     }
 
 
@@ -234,7 +236,7 @@ def baseline_demo(
         item = random.Random(seed).choice(CONTENT_ITEMS)
 
     action = baseline_agent(item["content_text"])
-    total_reward, scores, feedback = grade(action, item)
+    total_reward, scores, feedback = grade(action, item, steps_taken=1)
 
     return {
         "content_id": item["content_id"],

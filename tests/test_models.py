@@ -114,3 +114,58 @@ class TestAdReviewObservation:
         )
         assert obs.total_score == 1.0
         assert obs.gold_decision == "APPROVE"
+
+
+class TestMultiStepModels:
+    """Tests for multi-step episode model support."""
+
+    def test_action_default_is_decide(self):
+        action = AdReviewAction(
+            decision="APPROVE",
+            iab_category="IAB_SAFE",
+            garm_category="GARM_SAFE",
+            risk_level="LOW",
+            reasoning="Standard safe content review.",
+            confidence=0.9,
+        )
+        assert action.action_type == "DECIDE"
+
+    def test_action_request_context(self):
+        action = AdReviewAction(action_type="REQUEST_CONTEXT")
+        assert action.action_type == "REQUEST_CONTEXT"
+        assert action.decision == "ESCALATE"  # default
+
+    def test_action_invalid_action_type(self):
+        with pytest.raises(Exception):
+            AdReviewAction(action_type="INVALID")
+
+    def test_observation_has_step_fields(self):
+        obs = AdReviewObservation(
+            content_id="test_001",
+            content_text="Test",
+            content_type="post",
+            platform="twitter",
+            difficulty="easy",
+            step_number=1,
+            max_steps=3,
+            additional_context="[Context 1] Author has clean record.",
+            done=False,
+            reward=None,
+        )
+        assert obs.step_number == 1
+        assert obs.max_steps == 3
+        assert "Author has clean record" in obs.additional_context
+
+    def test_observation_defaults_step_zero(self):
+        obs = AdReviewObservation(
+            content_id="test_001",
+            content_text="Test",
+            content_type="post",
+            platform="twitter",
+            difficulty="easy",
+            done=False,
+            reward=None,
+        )
+        assert obs.step_number == 0
+        assert obs.max_steps == 3
+        assert obs.additional_context is None

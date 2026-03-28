@@ -196,3 +196,67 @@ class TestFeedback:
         action = _make_action(decision="APPROVE")
         _, _, feedback = grade(action, gold)
         assert "✗" in feedback
+
+
+class TestStepEfficiency:
+    """Test that multi-step episodes adjust efficiency scoring."""
+
+    def test_one_step_full_efficiency(self):
+        gold = _make_gold()
+        action = _make_action(confidence=0.9)
+        _, scores_1, _ = grade(action, gold, steps_taken=1)
+        # 1 step: efficiency = 0.1 * 0.9 * 1.0
+        assert scores_1["efficiency"] == round(0.1 * 0.9 * 1.0, 4)
+
+    def test_two_steps_reduced_efficiency(self):
+        gold = _make_gold()
+        action = _make_action(confidence=0.9)
+        _, scores_2, _ = grade(action, gold, steps_taken=2)
+        # 2 steps: efficiency = 0.1 * 0.9 * 0.7
+        assert scores_2["efficiency"] == round(0.1 * 0.9 * 0.7, 4)
+
+    def test_three_steps_low_efficiency(self):
+        gold = _make_gold()
+        action = _make_action(confidence=0.9)
+        _, scores_3, _ = grade(action, gold, steps_taken=3)
+        # 3 steps: efficiency = 0.1 * 0.9 * 0.4
+        assert scores_3["efficiency"] == round(0.1 * 0.9 * 0.4, 4)
+
+    def test_fewer_steps_higher_total(self):
+        gold = _make_gold()
+        action = _make_action(confidence=0.9)
+        total_1, _, _ = grade(action, gold, steps_taken=1)
+        total_2, _, _ = grade(action, gold, steps_taken=2)
+        total_3, _, _ = grade(action, gold, steps_taken=3)
+        assert total_1 > total_2 > total_3
+
+    def test_default_steps_is_one(self):
+        gold = _make_gold()
+        action = _make_action(confidence=0.9)
+        _, scores_default, _ = grade(action, gold)
+        _, scores_explicit, _ = grade(action, gold, steps_taken=1)
+        assert scores_default == scores_explicit
+
+    def test_feedback_includes_step_count(self):
+        gold = _make_gold()
+        action = _make_action()
+        _, _, feedback = grade(action, gold, steps_taken=2)
+        assert "2 steps" in feedback
+
+
+class TestContextLayers:
+    """Test that data items have context layers for multi-step episodes."""
+
+    def test_all_items_have_context_layers(self):
+        from ad_review_env.data import CONTENT_ITEMS
+        for item in CONTENT_ITEMS:
+            assert "context_layer_1" in item, f"{item['content_id']} missing layer 1"
+            assert "context_layer_2" in item, f"{item['content_id']} missing layer 2"
+
+    def test_context_layers_are_strings(self):
+        from ad_review_env.data import CONTENT_ITEMS
+        for item in CONTENT_ITEMS:
+            assert isinstance(item["context_layer_1"], str)
+            assert isinstance(item["context_layer_2"], str)
+            assert len(item["context_layer_1"]) > 20
+            assert len(item["context_layer_2"]) > 20

@@ -46,42 +46,52 @@ GARM_CATEGORIES = [
 
 VALID_DECISIONS = Literal["APPROVE", "REJECT", "ESCALATE"]
 VALID_RISK_LEVELS = Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+VALID_ACTION_TYPES = Literal["DECIDE", "REQUEST_CONTEXT"]
 
 
 class AdReviewAction(Action):
     """
     Action for the Brand-Safe Ad Review environment.
 
-    The agent reviews a UGC content item and decides whether it is
-    brand-safe for ad placement.
+    Two action types:
+      - ``DECIDE``: Submit a final review decision (ends the episode).
+      - ``REQUEST_CONTEXT``: Ask for additional context about the content
+        (author history, community signals). Episode continues.
+
+    Multi-step episodes reward efficiency: deciding in fewer steps yields
+    a higher efficiency score.
     """
 
     # model_config inherited from Action (extra="forbid", validate_assignment=True)
 
+    action_type: VALID_ACTION_TYPES = Field(
+        default="DECIDE",
+        description="DECIDE to submit final review, or REQUEST_CONTEXT for more info",
+    )
     decision: VALID_DECISIONS = Field(
-        ...,
+        default="ESCALATE",
         description="Review decision: APPROVE (brand-safe), REJECT (unsafe), or ESCALATE (human review needed)",
     )
     iab_category: str = Field(
-        ...,
+        default="IAB_CONTROVERSIAL",
         description=f"IAB Content Taxonomy category. One of: {IAB_CATEGORIES}",
     )
     garm_category: str = Field(
-        ...,
+        default="GARM_SAFE",
         description=f"GARM Brand Safety Floor category. One of: {GARM_CATEGORIES}",
     )
     risk_level: VALID_RISK_LEVELS = Field(
-        ...,
+        default="MEDIUM",
         description="Assessed risk level for brand safety: LOW, MEDIUM, HIGH, or CRITICAL",
     )
     reasoning: str = Field(
-        ...,
+        default="Requesting additional context for review.",
         min_length=10,
         max_length=500,
         description="Brief explanation of the review decision (10-500 chars)",
     )
     confidence: float = Field(
-        ...,
+        default=0.5,
         ge=0.0,
         le=1.0,
         description="Confidence score for the decision [0.0, 1.0]",
@@ -110,7 +120,8 @@ class AdReviewObservation(Observation):
     """
     Observation from the Brand-Safe Ad Review environment.
 
-    Contains the UGC content item to review plus scoring feedback.
+    Contains the UGC content item to review, optional enriched context
+    (revealed after REQUEST_CONTEXT actions), and scoring feedback.
     """
 
     # model_config inherited from Observation (extra="forbid", validate_assignment=True)
@@ -122,7 +133,12 @@ class AdReviewObservation(Observation):
     platform: str = Field(description="Platform context: instagram, tiktok, youtube, twitter")
     difficulty: str = Field(description="Task difficulty: easy, medium, hard")
 
-    # Scoring feedback (populated after step)
+    # Multi-step episode state
+    step_number: int = Field(default=0, description="Current step in the episode (0-indexed)")
+    max_steps: int = Field(default=3, description="Maximum steps allowed before forced decision")
+    additional_context: Optional[str] = Field(default=None, description="Enriched context (after REQUEST_CONTEXT)")
+
+    # Scoring feedback (populated after DECIDE step)
     score_decision: float = Field(default=0.0, description="Score for decision correctness [0, 0.4]")
     score_category: float = Field(default=0.0, description="Score for category accuracy [0, 0.3]")
     score_reasoning: float = Field(default=0.0, description="Score for reasoning quality [0, 0.2]")

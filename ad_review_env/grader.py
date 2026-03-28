@@ -11,13 +11,26 @@ Reward formula (max 1.0):
   0.4 × decision_score   — correct APPROVE/REJECT/ESCALATE
   0.3 × category_score   — correct IAB + GARM category
   0.2 × reasoning_score  — reasoning quality (length + flagged elements)
-  0.1 × efficiency_score — confidence calibration (penalizes overconfidence on wrong answers)
+  0.1 × efficiency_score — confidence calibration × step-efficiency multiplier
+
+Step-efficiency multiplier (multi-step episodes):
+  1 step  → 1.0×  (decided immediately — full efficiency credit)
+  2 steps → 0.7×  (requested context once — slight penalty)
+  3 steps → 0.4×  (used all context — larger penalty)
 """
 
 from typing import Any, Dict, Tuple
 
 
-def grade(action_data: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dict[str, float], str]:
+# Step-efficiency multipliers: fewer steps = higher efficiency
+_STEP_EFFICIENCY = {1: 1.0, 2: 0.7, 3: 0.4}
+
+
+def grade(
+    action_data: Dict[str, Any],
+    gold: Dict[str, Any],
+    steps_taken: int = 1,
+) -> Tuple[float, Dict[str, float], str]:
     """
     Grade an AdReviewAction against gold labels.
 
@@ -25,6 +38,7 @@ def grade(action_data: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
         action_data: dict with keys: decision, iab_category, garm_category,
                      risk_level, reasoning, confidence, flagged_elements
         gold: gold-label dict from CONTENT_ITEMS
+        steps_taken: number of steps the agent took (1 = immediate, 2+ = used context)
 
     Returns:
         (total_reward, component_scores, feedback_message)
@@ -89,12 +103,16 @@ def grade(action_data: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
     #    - Correct + low confidence → partial score
     #    - Wrong + high confidence → penalized (overconfidence)
     #    - Wrong + low confidence → partial credit (epistemic humility)
+    #    Then multiply by step-efficiency (fewer steps = better)
     # -------------------------------------------------------------------------
     correct = decision == gold_decision
     if correct:
-        efficiency_score = confidence  # reward certainty when right
+        raw_efficiency = confidence  # reward certainty when right
     else:
-        efficiency_score = 1.0 - confidence  # reward uncertainty when wrong
+        raw_efficiency = 1.0 - confidence  # reward uncertainty when wrong
+
+    step_mult = _STEP_EFFICIENCY.get(min(steps_taken, 3), 0.4)
+    efficiency_score = raw_efficiency * step_mult
 
     # -------------------------------------------------------------------------
     # Difficulty multiplier — hard tasks worth slightly more
@@ -122,7 +140,7 @@ def grade(action_data: Dict[str, Any], gold: Dict[str, Any]) -> Tuple[float, Dic
 
     feedback = _build_feedback(
         decision, gold_decision, iab_category, gold_iab,
-        garm_category, gold_garm, component_scores, difficulty
+        garm_category, gold_garm, component_scores, difficulty, steps_taken
     )
 
     return total, component_scores, feedback
@@ -140,6 +158,7 @@ def _build_feedback(
     garm: str, gold_garm: str,
     scores: Dict[str, float],
     difficulty: str,
+    steps_taken: int = 1,
 ) -> str:
     parts = []
 
@@ -160,12 +179,13 @@ def _build_feedback(
     else:
         parts.append(f"✓ GARM category correct.")
 
+    step_note = f" ({steps_taken} step{'s' if steps_taken != 1 else ''})"
     parts.append(
         f"Scores → decision:{scores['decision']:.2f} "
         f"category:{scores['category']:.2f} "
         f"reasoning:{scores['reasoning']:.2f} "
         f"efficiency:{scores['efficiency']:.2f} "
-        f"| total:{scores['total']:.3f} [{difficulty}]"
+        f"| total:{scores['total']:.3f} [{difficulty}]{step_note}"
     )
 
     return " ".join(parts)

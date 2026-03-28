@@ -28,7 +28,22 @@ Each episode presents one UGC content item (post, caption, comment, or bio) from
 4. **Explain**: Provide reasoning and flag specific harmful elements
 5. **Calibrate**: Express a confidence score `[0.0, 1.0]`
 
-Episodes are **single-step** — `done=True` after every `step()`.
+Episodes are **multi-step** — agents can `REQUEST_CONTEXT` before making a final `DECIDE`:
+
+```
+Step 0: Agent sees content → DECIDE (end) or REQUEST_CONTEXT (continue)
+Step 1: Agent sees enriched context → DECIDE (end) or REQUEST_CONTEXT
+Step 2: Max steps → must DECIDE (auto-ESCALATE if not)
+```
+
+Fewer steps = higher efficiency score. Easy items should be decided in 1 step.
+
+## Action Types
+
+| Action | Effect | Episode |
+|--------|--------|---------|
+| `DECIDE` | Submit final review decision | Ends (done=True) |
+| `REQUEST_CONTEXT` | Request author history & community signals | Continues (done=False) |
 
 ## Reward Formula (max 1.0)
 
@@ -37,7 +52,9 @@ Episodes are **single-step** — `done=True` after every `step()`.
 | Decision accuracy | 0.4 | Correct APPROVE/REJECT/ESCALATE |
 | Category accuracy | 0.3 | Correct IAB (0.15) + GARM (0.15) |
 | Reasoning quality | 0.2 | Length + flagged elements |
-| Confidence calibration | 0.1 | Penalizes overconfidence on wrong answers |
+| Confidence calibration | 0.1 | Penalizes overconfidence on wrong answers × step-efficiency |
+
+Step-efficiency multiplier: 1 step → 1.0×, 2 steps → 0.7×, 3 steps → 0.4×
 
 Hard tasks get a 1.1× difficulty multiplier.
 
