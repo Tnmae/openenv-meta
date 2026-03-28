@@ -75,7 +75,6 @@ Each item has gold labels, context layers, and deterministic grading.
 ### Docker (recommended)
 
 ```bash
-cd ad_review_env
 docker build -t ad-review-env .
 docker run -p 8000:8000 ad-review-env
 ```
@@ -84,7 +83,7 @@ docker run -p 8000:8000 ad-review-env
 
 ```bash
 cd ad_review_env
-uv pip install -e ".[core]"
+uv pip install -e "."
 uvicorn server.app:app --port 8000
 ```
 
@@ -142,16 +141,18 @@ python -m pytest tests/ -v
 
 ```
 openenv-meta/
+├── Dockerfile                 # Docker (builds from repo root)
+├── openenv.yaml               # OpenEnv manifest (3 task definitions)
 ├── inference.py               # LLM inference script (OpenAI client)
 ├── conftest.py                # Test infrastructure (openenv stubs)
+├── README.md
+├── LICENSE
 ├── tests/                     # 83 tests
 │   ├── test_data.py
 │   ├── test_grader.py
 │   ├── test_agent.py
 │   └── test_models.py
-└── ad_review_env/
-    ├── Dockerfile             # Docker (HF Spaces compatible)
-    ├── openenv.yaml           # OpenEnv manifest (3 task definitions)
+└── ad_review_env/             # The environment package
     ├── pyproject.toml
     ├── models.py              # Typed Pydantic action/observation models
     ├── data.py                # 30 UGC items with gold labels + context layers

@@ -12,12 +12,11 @@ COPY ad_review_env/grader.py .
 COPY ad_review_env/agent.py .
 COPY ad_review_env/client.py .
 COPY ad_review_env/baseline.py .
-COPY ad_review_env/openenv.yaml .
-COPY ad_review_env/README.md .
 COPY ad_review_env/server/ ./server/
+COPY openenv.yaml .
 COPY inference.py .
 
-RUN uv pip install --system -e ".[core]" || pip install openenv-core
+RUN uv pip install --system -e "." || pip install openenv-core
 
 EXPOSE 8000
 
