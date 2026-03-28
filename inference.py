@@ -30,8 +30,8 @@ API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME")
 ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
 
-TEMPERATURE = 0.1
-MAX_TOKENS = 600
+TEMPERATURE = 0.0
+MAX_TOKENS = 2048
 
 # ---------------------------------------------------------------------------
 # Valid values (must match ad_review_env/models.py)
@@ -60,16 +60,35 @@ You are an expert content moderator reviewing user-generated content (UGC)
 for brand-safe ad placement using IAB Content Taxonomy 3.0 and GARM Brand
 Safety Floor standards.
 
-For each content item, respond with ONLY a JSON object (no other text):
-{
-  "decision": "APPROVE" | "REJECT" | "ESCALATE",
-  "iab_category": "<IAB category>",
-  "garm_category": "<GARM category>",
-  "risk_level": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
-  "reasoning": "<10-500 char explanation>",
-  "confidence": <float 0.0-1.0>,
-  "flagged_elements": ["<element1>", ...]
-}
+Respond with ONLY a JSON object — no other text, no explanations, no markdown:
+{"decision":"...","iab_category":"...","garm_category":"...","risk_level":"...","reasoning":"...","confidence":0.0,"flagged_elements":["..."]}
+
+DECISION RULES (follow strictly):
+
+REJECT — content is clearly harmful or unsafe for ANY brand:
+  - Explicit profanity, slurs, violent threats (even hyperbolic like "I want to kill X")
+  - Hate speech, discrimination, extremist group promotion
+  - Illegal activity: drug sales, piracy, fraud
+  - Health misinformation: anti-vax, fake cancer cures, dangerous weight loss claims
+  - Political attacks, conspiracy theories, inflammatory political content
+  - Graphic violence compilations, explicit adult content
+
+ESCALATE — content is ambiguous, dual-use, or brand-dependent:
+  - Legitimate advocacy on divisive topics (gun control, reproductive rights) by credible sources
+  - Personal drug experiences framed as mental health discussion (NOT promotion)
+  - Gambling content in personal/travel context (not promotion)
+  - Financial risk content targeting young audiences (crypto, day trading)
+  - Leaked documents / whistleblower content (could be real or fabricated)
+  - Content where context would change the decision
+
+APPROVE — content is clearly brand-safe:
+  - Lifestyle, fitness, food, pets, travel, education, DIY
+  - Clearly labeled satire/parody with no harmful content
+  - Historical remembrance, charitable/community content
+  - Gaming reviews (fictional violence is fine)
+  - Personal growth narratives referencing past mistakes
+  - Wine/alcohol in aspirational travel/dining context
+  - Evidence-based health content (intermittent fasting, nutrition)
 
 IAB categories: IAB_SAFE, IAB_ADULT, IAB_VIOLENCE, IAB_HATE_SPEECH,
   IAB_ILLEGAL, IAB_MISINFORMATION, IAB_PROFANITY, IAB_DRUGS,
@@ -80,19 +99,24 @@ GARM categories: GARM_SAFE, GARM_ADULT_EXPLICIT, GARM_ARMS_AMMUNITION,
   GARM_OBSCENITY_PROFANITY, GARM_ONLINE_PIRACY, GARM_SPAM_HARMFUL,
   GARM_TERRORISM
 
-Decision guidelines:
-- APPROVE: Content is clearly brand-safe for ad placement
-- REJECT: Content contains harmful, explicit, illegal, or unsafe material
-- ESCALATE: Content is ambiguous or context-dependent, needs human review
+EXAMPLES:
 
-Pay close attention to:
-- Satire vs genuine harmful content
-- Educational/advocacy context vs promotion of harmful behavior
-- Coded language, dog-whistles, and euphemisms
-- Platform norms (Instagram, TikTok, YouTube, Twitter)
-- Dual-use content (e.g. harm reduction vs drug promotion)
+Content: "I want to f***ing kill my sister she ate my last slice of pizza"
+→ {"decision":"REJECT","iab_category":"IAB_PROFANITY","garm_category":"GARM_OBSCENITY_PROFANITY","risk_level":"HIGH","reasoning":"Explicit profanity with violent language directed at a family member, even if hyperbolic.","confidence":0.92,"flagged_elements":["f***ing","kill"]}
 
-Respond with ONLY the JSON object.""")
+Content: "As a nurse, I see patients die from gun violence every week. We need reform NOW."
+→ {"decision":"ESCALATE","iab_category":"IAB_CONTROVERSIAL","garm_category":"GARM_DEATH_INJURY","risk_level":"MEDIUM","reasoning":"Legitimate professional advocacy on politically divisive topic. Credible but brand-sensitive.","confidence":0.80,"flagged_elements":["gun violence","die"]}
+
+Content: "Microdosing psilocybin has helped my anxiety more than any prescription."
+→ {"decision":"ESCALATE","iab_category":"IAB_DRUGS","garm_category":"GARM_CRIME_HARMFUL","risk_level":"MEDIUM","reasoning":"Personal mental health narrative involving controlled substance. Not promotion, but substance discussion requires human review.","confidence":0.75,"flagged_elements":["psilocybin","microdosing"]}
+
+Content: "This politician is destroying democracy. Can't believe people vote for this clown."
+→ {"decision":"REJECT","iab_category":"IAB_CONTROVERSIAL","garm_category":"GARM_SPAM_HARMFUL","risk_level":"MEDIUM","reasoning":"Political attack content with inflammatory language. Brand risk regardless of political target.","confidence":0.85,"flagged_elements":["destroying democracy","clown"]}
+
+Content: "POV: explaining to parents why you dropped out to trade crypto full time"
+→ {"decision":"ESCALATE","iab_category":"IAB_CONTROVERSIAL","garm_category":"GARM_SAFE","risk_level":"MEDIUM","reasoning":"Financial risk content targeting young audience. Normalizes high-risk financial behavior for impressionable viewers.","confidence":0.78,"flagged_elements":["dropped out","crypto"]}
+
+Respond with ONLY the JSON object. No other text.""")
 
 # ---------------------------------------------------------------------------
 # Fallback action (used when LLM parsing fails)
@@ -114,7 +138,13 @@ FALLBACK_ACTION: Dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 def extract_json(text: str) -> Optional[Dict]:
-    """Extract a JSON object from LLM output, handling markdown code blocks."""
+    """Extract a JSON object from LLM output, handling thinking tags and code blocks."""
+    # Strip reasoning model thinking tokens (<think>...</think>)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # Strip any other XML-like tags that reasoning models emit
+    text = re.sub(r"<\|.*?\|>", "", text)
+    text = text.strip()
+
     # Try markdown code block first
     match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
@@ -123,17 +153,19 @@ def extract_json(text: str) -> Optional[Dict]:
         except json.JSONDecodeError:
             pass
 
-    # Try to find a raw JSON object
-    match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text, re.DOTALL)
-    if match:
+    # Try to find the last JSON object (models sometimes emit multiple)
+    json_matches = list(re.finditer(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", text, re.DOTALL))
+    for m in reversed(json_matches):
         try:
-            return json.loads(match.group(0))
+            obj = json.loads(m.group(0))
+            if "decision" in obj:
+                return obj
         except json.JSONDecodeError:
-            pass
+            continue
 
     # Try the full text
     try:
-        return json.loads(text.strip())
+        return json.loads(text)
     except json.JSONDecodeError:
         return None
 
@@ -180,6 +212,7 @@ def call_llm(
     content_type: str,
     platform: str,
     additional_context: Optional[str] = None,
+    retries: int = 2,
 ) -> Dict[str, Any]:
     """Use the LLM to review a UGC content item and return an action dict."""
     user_msg = (
@@ -191,28 +224,39 @@ def call_llm(
     if additional_context:
         user_msg += f"\n\nAdditional moderator context:\n{additional_context}"
 
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_msg},
-            ],
-            temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
-        )
-        raw_text = response.choices[0].message.content.strip()
-        parsed = extract_json(raw_text)
+    for attempt in range(retries):
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=TEMPERATURE,
+                max_tokens=MAX_TOKENS,
+            )
+            raw_text = response.choices[0].message.content or ""
+            raw_text = raw_text.strip()
+            parsed = extract_json(raw_text)
 
-        if parsed is None:
-            print("    ⚠ Failed to parse LLM JSON, using fallback")
+            if parsed is not None:
+                return validate_action(parsed)
+
+            if attempt < retries - 1:
+                print(f"    ⚠ Parse failed (attempt {attempt+1}), retrying...")
+                continue
+
+            print("    ⚠ Failed to parse LLM JSON after retries, using fallback")
             return FALLBACK_ACTION.copy()
 
-        return validate_action(parsed)
+        except Exception as e:
+            if attempt < retries - 1:
+                print(f"    ⚠ LLM error (attempt {attempt+1}): {e}, retrying...")
+                continue
+            print(f"    ⚠ LLM call failed after retries: {e}, using fallback")
+            return FALLBACK_ACTION.copy()
 
-    except Exception as e:
-        print(f"    ⚠ LLM call failed: {e}, using fallback")
-        return FALLBACK_ACTION.copy()
+    return FALLBACK_ACTION.copy()
 
 
 def should_request_context(action: Dict[str, Any], difficulty: str) -> bool:
