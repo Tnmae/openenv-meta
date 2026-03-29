@@ -1,23 +1,17 @@
 # Brand-Safe Ad Review Environment
 
-An OpenEnv RL environment that trains agents to moderate user-generated content for brand-safe ad placement — the way real trust & safety teams do it.
+An OpenEnv RL environment for UGC content moderation. Agents classify posts using **IAB Content Taxonomy 3.0** and **GARM Brand Safety Floor** standards, deciding to approve, reject, or escalate. Multi-step episodes let agents request author history and community signals before deciding.
 
-Agents review UGC posts, classify them using **IAB Content Taxonomy 3.0** and **GARM Brand Safety Floor** standards, and decide: approve, reject, or escalate to human review. Multi-step episodes let agents request author history and community signals before making a final call.
-
-**Live demo:** [grizzleyyybear-ad-review-env.hf.space](https://grizzleyyybear-ad-review-env.hf.space/web)
-
-## Why This Matters
-
-Every major platform employs content moderators to decide what's brand-safe. It's a $10B+ market, and the decisions are nuanced — a nurse advocating for gun reform is different from a political attack post, even though both mention violence. This environment captures that nuance with 50 real-world-style UGC items spanning obvious violations to subtle edge cases that challenge frontier models.
+**Live:** [tnmae-openenv-ad-review.hf.space](https://tnmae-openenv-ad-review.hf.space/web)
 
 ## How It Works
 
-Each episode presents one UGC item (post, caption, comment, or bio). The agent must:
+Each episode presents one UGC item. The agent must:
 
 1. **Decide** — `APPROVE`, `REJECT`, or `ESCALATE`
 2. **Classify** — assign IAB + GARM categories
 3. **Assess** — risk level and confidence
-4. **Explain** — reasoning with specific flagged elements
+4. **Explain** — reasoning with flagged elements
 
 ### Multi-Step Episodes
 
@@ -35,10 +29,10 @@ Fewer steps = higher efficiency score. Easy items should be nailed in one step.
 
 | Component | Weight | Signal |
 |-----------|--------|--------|
-| Decision accuracy | 40% | Correct APPROVE/REJECT/ESCALATE (partial credit for adjacent) |
-| Category accuracy | 30% | Correct IAB (15%) + GARM (15%) |
-| Reasoning quality | 20% | Explanation length + specific flagged elements |
-| Efficiency | 10% | Confidence calibration × step-efficiency multiplier |
+| Decision accuracy | 40% | Correct APPROVE/REJECT/ESCALATE |
+| Category accuracy | 30% | Correct IAB + GARM |
+| Reasoning quality | 20% | Length + flagged elements |
+| Efficiency | 10% | Confidence calibration × step-efficiency |
 
 Step-efficiency: 1 step → 1.0×, 2 steps → 0.7×, 3 steps → 0.4×. Hard tasks get a 1.1× difficulty multiplier.
 
@@ -111,13 +105,13 @@ Then: [localhost:8000/web](http://localhost:8000/web) for the dashboard, [localh
 export API_BASE_URL="https://router.huggingface.co/v1"
 export MODEL_NAME="deepseek/deepseek-r1-0528"
 export HF_TOKEN="your-token"
-export ENV_URL="https://grizzleyyybear-ad-review-env.hf.space"
+export ENV_URL="https://tnmae-openenv-ad-review.hf.space"
 
 pip install openai requests
 python inference.py
 ```
 
-The script fetches all 50 tasks, calls the LLM for each, grades via `/grader`, and reports scores. Runs under 20 minutes on 2 vCPU / 8GB RAM.
+The script fetches tasks, calls the LLM for each, grades via `/grader`, and reports scores.
 
 ## Baseline Scores
 
@@ -125,9 +119,7 @@ The script fetches all 50 tasks, calls the LLM for each, grades via `/grader`, a
 |-------|-----------|----------|------|--------|------|
 | Keyword baseline | 0.52 | 53% | 0.55 | 0.49 | 0.51 |
 | Smart rule-based | 0.996 | 100% | 0.99 | 0.99 | 1.00 |
-| DeepSeek R1 (LLM) | 0.82 | 73% | 0.89 | 0.74 | 0.83 |
-
-The smart agent uses multi-signal contextual analysis with per-category pattern libraries, context modifiers (satire/narrative/advocacy detection), and calibrated confidence scoring.
+| Qwen 2.5-coder 7B | 0.89 | 93% | 0.86 | 0.87 | 0.94 |
 
 ## Tests
 

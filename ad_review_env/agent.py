@@ -1,11 +1,4 @@
-"""
-Smart rule-based agent for UGC content moderation.
-
-Uses multi-signal contextual analysis (not flat keyword matching) to classify
-content for brand-safe ad placement. Scores ~0.996 on all 50 items.
-
-Pipeline: scan_all_categories → detect_context → classify_content → build_action
-"""
+"""Smart rule-based agent for UGC content moderation (~0.996 on 50 items)."""
 
 from __future__ import annotations
 
@@ -74,8 +67,6 @@ class Classification:
     risk_level: str = "LOW"
     confidence: float = 0.85
     reasoning_parts: List[str] = field(default_factory=list)
-
-# --- Pattern libraries ---
 
 CRITICAL_PATTERNS: List[WeightedPattern] = [
     (r"\b(kill|murder|rape)\b", 0.6),
@@ -266,10 +257,7 @@ ADVOCACY_MARKERS: List[str] = [
 ]
 
 
-# --- Signal scanning ---
-
 def scan_patterns(text: str, patterns: List[WeightedPattern]) -> SignalResult:
-    """Scan text against weighted regex patterns. Returns max weight and matched fragments."""
     max_weight = 0.0
     matched: List[str] = []
     for pattern, weight in patterns:
@@ -281,7 +269,6 @@ def scan_patterns(text: str, patterns: List[WeightedPattern]) -> SignalResult:
 
 
 def scan_all_categories(text: str) -> SignalMap:
-    """Run every category's pattern library against the text."""
     return SignalMap(
         critical=scan_patterns(text, CRITICAL_PATTERNS),
         adult=scan_patterns(text, ADULT_PATTERNS),
@@ -299,22 +286,17 @@ def scan_all_categories(text: str) -> SignalMap:
     )
 
 
-# --- Context detection ---
-
 def _matches_any(text: str, markers: List[str]) -> bool:
     return any(re.search(p, text, re.IGNORECASE) for p in markers)
 
 
 def detect_context(text: str) -> ContentContext:
-    """Detect satire, personal narrative, and advocacy modifiers."""
     return ContentContext(
         is_satire=_matches_any(text, SATIRE_MARKERS),
         is_personal_narrative=_matches_any(text, PERSONAL_NARRATIVE_MARKERS),
         is_advocacy=_matches_any(text, ADVOCACY_MARKERS),
     )
 
-
-# --- Classification (priority cascade) ---
 
 def _text_matches(text: str, pattern: str) -> bool:
     return bool(re.search(pattern, text, re.IGNORECASE))
@@ -325,7 +307,6 @@ def _set(
     decision: str, iab: str, garm: str, risk: str, confidence: float,
     reason: str,
 ) -> Classification:
-    """Set all fields on a Classification in one call."""
     c.decision = decision
     c.iab_category = iab
     c.garm_category = garm
@@ -422,7 +403,6 @@ def _classify_safe(signals: SignalMap, ctx: ContentContext, c: Classification) -
 
 
 def classify_content(text: str, signals: SignalMap, context: ContentContext) -> Classification:
-    """Priority cascade: dangerous categories override less dangerous ones."""
     c = Classification()
 
     if signals.critical.strength >= 0.8 and not context.is_satire:
@@ -464,13 +444,10 @@ def classify_content(text: str, signals: SignalMap, context: ContentContext) -> 
     return _classify_safe(signals, context, c)
 
 
-# --- Reasoning assembly ---
-
 def build_reasoning(
     classification: Classification, signals: SignalMap, context: ContentContext,
     content_type: str = "", platform: str = "",
 ) -> str:
-    """Assemble human-readable reasoning from classification + signals."""
     parts = list(classification.reasoning_parts)
 
     flagged = signals.all_flagged
@@ -487,7 +464,6 @@ def build_reasoning(
 
     reasoning = ". ".join(parts) + "."
 
-    # Enforce length constraints (Pydantic model requires 10–500 chars)
     if len(reasoning) > 500:
         reasoning = reasoning[:497] + "..."
     if len(reasoning) < 10:
@@ -496,10 +472,7 @@ def build_reasoning(
     return reasoning
 
 
-# --- Action assembly ---
-
 def build_review_action(classification: Classification, reasoning: str, signals: SignalMap) -> Dict[str, Any]:
-    """Assemble the final action dict matching AdReviewAction schema."""
     return {
         "decision": classification.decision,
         "iab_category": classification.iab_category,
@@ -511,10 +484,7 @@ def build_review_action(classification: Classification, reasoning: str, signals:
     }
 
 
-# --- Public API ---
-
 def smart_agent(text: str, content_type: str = "", platform: str = "") -> Dict[str, Any]:
-    """Review UGC content for brand-safe ad placement."""
     signals = scan_all_categories(text)
     context = detect_context(text)
     classification = classify_content(text, signals, context)
@@ -522,16 +492,13 @@ def smart_agent(text: str, content_type: str = "", platform: str = "") -> Dict[s
     return build_review_action(classification, reasoning, signals)
 
 
-# --- Batch evaluation ---
-
-AgentFn = Callable[[str, str, str], Dict[str, Any]]
+AgentFn= Callable[[str, str, str], Dict[str, Any]]
 GradeFn = Callable[..., Tuple[float, Dict[str, float], str]]
 
 
 def evaluate_agent(
     items: List[Dict[str, Any]], grade_fn: GradeFn, agent_fn: Optional[AgentFn] = None,
 ) -> Dict[str, Any]:
-    """Run an agent across content items and return aggregate metrics."""
     if agent_fn is None:
         agent_fn = smart_agent
 

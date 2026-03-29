@@ -51,7 +51,6 @@ class AdReviewEnvironment(Environment):
             self._get_next_context()
             return self._make_obs(step_number=step_num, done=False, reward=None)
 
-        # DECIDE (or forced at max steps)
         if action.action_type == "REQUEST_CONTEXT" and step_num >= MAX_STEPS:
             action_data = {
                 "decision": "ESCALATE", "iab_category": "IAB_CONTROVERSIAL",

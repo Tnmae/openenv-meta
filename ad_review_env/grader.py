@@ -10,7 +10,6 @@ def grade(
     gold: Dict[str, Any],
     steps_taken: int = 1,
 ) -> Tuple[float, Dict[str, float], str]:
-    """Grade an action against gold labels. Returns (total, scores, feedback)."""
     decision = action_data.get("decision", "")
     iab_category = action_data.get("iab_category", "")
     garm_category = action_data.get("garm_category", "")
@@ -23,7 +22,6 @@ def grade(
     gold_garm = gold["gold_garm_category"]
     difficulty = gold["difficulty"]
 
-    # Decision score (weight 0.4)
     if decision == gold_decision:
         decision_score = 1.0
     elif _is_adjacent_decision(decision, gold_decision):
@@ -31,12 +29,10 @@ def grade(
     else:
         decision_score = 0.0
 
-    # Category score (weight 0.3): 50% IAB + 50% GARM
     iab_score = 1.0 if iab_category == gold_iab else 0.0
     garm_score = 1.0 if garm_category == gold_garm else 0.0
     category_score = 0.5 * iab_score + 0.5 * garm_score
 
-    # Reasoning score (weight 0.2)
     reasoning_len = len(reasoning.strip())
     if reasoning_len >= 100:
         length_score = 1.0
@@ -52,13 +48,11 @@ def grade(
         flagging_bonus = min(0.3, len(flagged_elements) * 0.1)
     reasoning_score = min(1.0, length_score + flagging_bonus)
 
-    # Efficiency score (weight 0.1): calibration × step-efficiency
     correct = decision == gold_decision
     raw_efficiency = confidence if correct else 1.0 - confidence
     step_mult = _STEP_EFFICIENCY.get(min(steps_taken, 3), 0.4)
     efficiency_score = raw_efficiency * step_mult
 
-    # Difficulty multiplier
     difficulty_multiplier = {"easy": 1.0, "medium": 1.05, "hard": 1.1}.get(difficulty, 1.0)
 
     raw_total = (
