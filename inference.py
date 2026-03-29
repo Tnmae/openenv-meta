@@ -193,7 +193,6 @@ def call_llm(
 
 
 def should_request_context(difficulty: str) -> bool:
-    """Always request context for medium/hard items — improves accuracy significantly."""
     return difficulty != "easy"
 
 
