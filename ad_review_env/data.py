@@ -3,9 +3,7 @@
 from typing import Any, Dict, List
 
 CONTENT_ITEMS: List[Dict[str, Any]] = [
-    # =========================================================================
-    # EASY (10 items) — clear-cut cases, unambiguous signals
-    # =========================================================================
+    # Easy items
     {
         "content_id": "easy_001",
         "content_text": "Just made the most amazing chocolate chip cookies! 🍪 Recipe in bio. #baking #homemade #foodie",
@@ -147,9 +145,7 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "notes": "Explicit adult content solicitation",
     },
 
-    # =========================================================================
-    # MEDIUM (10 items) — requires contextual judgment
-    # =========================================================================
+    # Medium items
     {
         "content_id": "med_001",
         "content_text": "Honestly the government is lying to us about everything. Wake up sheeple. Do your own research 🐑 #truth",
@@ -291,9 +287,7 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "notes": "Explicit copyright piracy promotion",
     },
 
-    # =========================================================================
-    # HARD (10 items) — subtle, requires deep contextual reasoning
-    # =========================================================================
+    # Hard items
     {
         "content_id": "hard_001",
         "content_text": "As a nurse, I see patients die from gun violence every week. We need common sense reform NOW. #guncontrol",
@@ -435,9 +429,7 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "notes": "Potential defamation/misinformation about a brand — escalate for legal review",
     },
 
-    # =========================================================================
-    # EASY (5 more items, easy_011–easy_015)
-    # =========================================================================
+    # Easy items (continued)
     {
         "content_id": "easy_011",
         "content_text": "Just finished crocheting this little mushroom amigurumi 🍄🧶 Pattern is free on my page!! #crochet #handmade #cottagecore",
@@ -509,9 +501,7 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "notes": "Book recommendation content, clearly brand-safe",
     },
 
-    # =========================================================================
-    # MEDIUM (8 more items, med_011–med_018)
-    # =========================================================================
+    # Medium items (continued)
     {
         "content_id": "med_011",
         "content_text": "Breaking down the hop profile of this double IPA 🍺 Notes of grapefruit, pine, and a hint of mango. ABV 8.2%. #craftbeer #beerreview",
@@ -625,9 +615,7 @@ CONTENT_ITEMS: List[Dict[str, Any]] = [
         "notes": "Political humor — not hateful but brand-sensitivity varies by advertiser. Escalate for alignment.",
     },
 
-    # =========================================================================
-    # HARD (7 more items, hard_011–hard_017)
-    # =========================================================================
+    # Hard items (continued)
     {
         "content_id": "hard_011",
         "content_text": "Took my kids to Drag Queen Story Hour at the library today 📚🌈 They LOVED it. Representation matters. If you don't like it, keep scrolling ✌️ #lgbtq #pride #family",

@@ -1,7 +1,6 @@
 """Root conftest — create openenv stubs before any package imports."""
 
 import sys
-import os
 import types
 from typing import Optional
 

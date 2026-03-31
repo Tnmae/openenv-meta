@@ -100,6 +100,8 @@ def baseline_agent(text: str, content_type: str = "", platform: str = "") -> Dic
 def get_tasks(n: int = 5, difficulty: Optional[str] = None, seed: Optional[int] = None) -> Dict[str, Any]:
     if not 1 <= n <= 50:
         raise HTTPException(status_code=400, detail="n must be between 1 and 50")
+    if seed is not None and not (0 <= seed <= 2**31 - 1):
+        raise HTTPException(status_code=400, detail="seed must be between 0 and 2147483647")
     pool = _filter_by_difficulty(CONTENT_ITEMS, difficulty)
     sample = random.Random(seed).sample(pool, min(n, len(pool)))
     return {"tasks": [_strip_gold_labels(item) for item in sample], "count": len(sample), "total_available": len(pool)}
@@ -111,7 +113,7 @@ class GraderRequest(BaseModel):
     iab_category: str = Field(...)
     garm_category: str = Field(...)
     risk_level: str = Field(...)
-    reasoning: str = Field(...)
+    reasoning: str = Field(..., min_length=10, max_length=500)
     confidence: float = Field(..., ge=0.0, le=1.0)
     flagged_elements: List[str] = Field(default_factory=list)
     steps_taken: int = Field(default=1, ge=1, le=3)
@@ -124,22 +126,21 @@ def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
     total_reward, scores, feedback = grade(action_data, gold, steps_taken=request.steps_taken)
     return {
         "content_id": request.content_id, "difficulty": gold["difficulty"],
-        "your_decision": request.decision, "gold_decision": gold["gold_decision"],
+        "your_decision": request.decision,
         "scores": scores, "total_reward": total_reward, "feedback": feedback,
         "steps_taken": request.steps_taken,
     }
 
 
 @app.get("/baseline", tags=["Hackathon"])
-def baseline_demo(content_id: Optional[str] = None, seed: Optional[int] = 42) -> Dict[str, Any]:
+def baseline_demo(content_id: Optional[str] = None, seed: Optional[int] = None) -> Dict[str, Any]:
     item = _lookup_content(content_id) if content_id else random.Random(seed).choice(CONTENT_ITEMS)
     action = baseline_agent(item["content_text"])
     total_reward, scores, feedback = grade(action, item, steps_taken=1)
     return {
         "content_id": item["content_id"], "content_text": item["content_text"],
         "difficulty": item["difficulty"], "baseline_action": action,
-        "gold_decision": item["gold_decision"], "scores": scores,
-        "total_reward": total_reward, "feedback": feedback,
+        "scores": scores, "total_reward": total_reward, "feedback": feedback,
     }
 
 
@@ -148,8 +149,8 @@ _AGENTS = {"smart": smart_agent, "baseline": baseline_agent}
 
 class AnalyzeRequest(BaseModel):
     content_text: str = Field(..., min_length=1, max_length=5000)
-    content_type: str = Field(default="post")
-    platform: str = Field(default="social_media")
+    content_type: str = Field(default="post", pattern=r"^(post|comment|caption|bio)$")
+    platform: str = Field(default="social_media", pattern=r"^(instagram|tiktok|youtube|twitter|facebook|social_media)$")
 
 
 @app.post("/analyze", tags=["Hackathon"])

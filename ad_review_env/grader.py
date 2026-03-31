@@ -1,9 +1,4 @@
-"""Deterministic grader with multi-signal reward shaping.
-
-Reward = 0.35*decision + 0.25*category + 0.20*reasoning + 0.10*efficiency + 0.10*calibration
-Difficulty multiplier: easy=1.0, medium=1.05, hard=1.1
-Penalizes: wrong decisions, overconfident wrong answers, missing flagged elements.
-"""
+"""Deterministic multi-signal reward grader."""
 
 from typing import Any, Dict, List, Tuple
 
