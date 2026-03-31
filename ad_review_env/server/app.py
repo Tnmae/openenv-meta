@@ -146,6 +146,18 @@ def baseline_demo(content_id: Optional[str] = None, seed: Optional[int] = 42) ->
 _AGENTS = {"smart": smart_agent, "baseline": baseline_agent}
 
 
+class AnalyzeRequest(BaseModel):
+    content_text: str = Field(..., min_length=1)
+    content_type: str = Field(default="post")
+    platform: str = Field(default="social_media")
+
+
+@app.post("/analyze", tags=["Hackathon"])
+def analyze_content(request: AnalyzeRequest) -> Dict[str, Any]:
+    result = smart_agent(request.content_text, request.content_type, request.platform)
+    return {"content_text": request.content_text, "analysis": result}
+
+
 @app.get("/evaluate", tags=["Hackathon"])
 def evaluate_endpoint(agent: str = "smart", difficulty: Optional[str] = None) -> Dict[str, Any]:
     if agent not in _AGENTS:

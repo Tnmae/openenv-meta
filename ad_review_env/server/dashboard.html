@@ -104,6 +104,27 @@
   </div>
 
   <div class="panel" style="margin-top:1.25rem;">
+    <h2>Analyze Content</h2>
+    <p style="font-size:0.8rem; color:var(--muted); margin-bottom:0.75rem;">Type or paste any UGC text. The smart agent classifies it instantly — decision, categories, risk level, and reasoning.</p>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Content</label>
+        <textarea id="analyzeText" placeholder="Type any comment, post, or bio here..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Content Type</label>
+        <select id="analyzeType"><option value="post">Post</option><option value="comment">Comment</option><option value="caption">Caption</option><option value="bio">Bio</option></select>
+      </div>
+      <div class="form-group">
+        <label>Platform</label>
+        <select id="analyzePlatform"><option value="social_media">Social Media</option><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="twitter">Twitter</option><option value="youtube">YouTube</option><option value="reddit">Reddit</option><option value="forum">Forum</option></select>
+      </div>
+      <div class="full"><button id="btnAnalyze" onclick="analyzeContent()">Analyze</button></div>
+    </div>
+    <div class="grade-output" id="analyzeOutput" style="display:none;"></div>
+  </div>
+
+  <div class="panel" style="margin-top:1.25rem;">
     <h2>Grade a Decision</h2>
     <p style="font-size:0.8rem; color:var(--muted); margin-bottom:0.75rem;">Pick a content item, make your moderation call, and see how it scores against the gold label.</p>
 
@@ -188,6 +209,38 @@ function esc(str) {
   return d.innerHTML;
 }
 function el(id) { return document.getElementById(id); }
+
+async function analyzeContent() {
+  const text = el('analyzeText').value.trim();
+  if (!text) return;
+  el('btnAnalyze').disabled = true;
+  el('analyzeOutput').style.display = 'block';
+  el('analyzeOutput').innerHTML = '<div style="color:var(--muted);">Analyzing...</div>';
+  try {
+    const body = { content_text: text, content_type: el('analyzeType').value, platform: el('analyzePlatform').value };
+    const data = await fetch(API + '/analyze', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) }).then(r => r.json());
+    if (data.detail) { el('analyzeOutput').innerHTML = `<div style="color:var(--red);">${esc(JSON.stringify(data.detail))}</div>`; el('btnAnalyze').disabled = false; return; }
+    const a = data.analysis;
+    const decClass = a.decision.toLowerCase();
+    const riskColors = { LOW: 'var(--green)', MEDIUM: 'var(--yellow)', HIGH: '#f97316', CRITICAL: 'var(--red)' };
+    const riskColor = riskColors[a.risk_level] || 'var(--text)';
+    const flaggedHtml = a.flagged_elements.length > 0
+      ? a.flagged_elements.map(f => `<code style="background:var(--border);padding:0.1rem 0.3rem;border-radius:3px;font-size:0.75rem;">${esc(f)}</code>`).join(' ')
+      : '<span style="color:var(--muted);">none</span>';
+    el('analyzeOutput').innerHTML = `
+      <div class="grade-row"><span class="grade-label">Decision</span><span class="badge badge-${decClass}" style="font-size:0.82rem;">${a.decision}</span></div>
+      <div class="grade-row"><span class="grade-label">Risk Level</span><span class="grade-val" style="color:${riskColor};">${a.risk_level}</span></div>
+      <div class="grade-row"><span class="grade-label">IAB Category</span><span class="grade-val">${a.iab_category}</span></div>
+      <div class="grade-row"><span class="grade-label">GARM Category</span><span class="grade-val">${a.garm_category}</span></div>
+      <div class="grade-row"><span class="grade-label">Confidence</span><span class="grade-val">${(a.confidence * 100).toFixed(0)}%</span></div>
+      <div class="grade-row"><span class="grade-label">Flagged</span><span>${flaggedHtml}</span></div>
+      <div style="margin-top:0.6rem;font-size:0.78rem;color:var(--muted);border-top:1px solid var(--border);padding-top:0.5rem;">${esc(a.reasoning)}</div>
+    `;
+  } catch (e) {
+    el('analyzeOutput').innerHTML = `<div style="color:var(--red);">${e.message}</div>`;
+  }
+  el('btnAnalyze').disabled = false;
+}
 
 async function runEval() {
   const agent = el('agentSelect').value;
