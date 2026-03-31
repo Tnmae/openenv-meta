@@ -57,40 +57,28 @@ def _strip_gold_labels(item: Dict[str, Any]) -> Dict[str, Any]:
 
 
 _BASELINE_RULES = [
-    # (keywords_any, decision, iab, garm, risk, age, confidence)
-    # Critical/violence
     (["kill", "murder", "rape", "terrorist", "bomb"], "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "CRITICAL", "MATURE", 0.85),
     (["child porn", "pedophil", "csam"], "REJECT", "IAB_ADULT", "GARM_ADULT_EXPLICIT", "CRITICAL", "ADULT", 0.95),
-    # Hate speech / extremism
     (["proud boys", "great replacement", "white power", "supremacist", "deportthem", "slur"],
      "REJECT", "IAB_HATE_SPEECH", "GARM_HATE_SPEECH", "HIGH", "ADULT", 0.85),
-    # Adult content
     (["18+", "adult content", "explicit", "nude", "xxx", "🔞", "uncensored"],
      "REJECT", "IAB_ADULT", "GARM_ADULT_EXPLICIT", "CRITICAL", "ADULT", 0.88),
-    # Profanity
     (["f***", "fuck", "shit", "bitch"],
      "REJECT", "IAB_PROFANITY", "GARM_OBSCENITY_PROFANITY", "HIGH", "MATURE", 0.78),
-    # Violence
     (["graphic violence", "knockouts", "brutal", "street fight"],
      "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "HIGH", "MATURE", 0.82),
-    # Illegal
     (["xanax", "no prescription", "pirat", "credit card number", "discreet shipping"],
      "REJECT", "IAB_ILLEGAL", "GARM_CRIME_HARMFUL", "HIGH", "ADULT", 0.85),
-    # Misinformation
     (["cancer cure", "doctors don't want", "wake up sheeple", "one weird trick", "instead of chemo"],
      "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "MEDIUM", "TEEN", 0.78),
     (["autism", "vaccine", "mmr"],
      "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", "TEEN", 0.75),
-    # MLM / scam
     (["join my team", "boss babe", "$10k/month", "earn from your phone"],
      "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", "TEEN", 0.80),
-    # Drugs (escalate)
     (["psilocybin", "microdosing", "cbd"],
      "ESCALATE", "IAB_DRUGS", "GARM_SAFE", "MEDIUM", "TEEN", 0.60),
-    # Gambling (escalate)
     (["gambling", "jackpot", "casino", "free spins", "slot"],
      "ESCALATE", "IAB_GAMBLING", "GARM_SAFE", "MEDIUM", "TEEN", 0.62),
-    # Controversial / political
     (["gun control", "abortion", "leaked", "crypto", "government lying", "politician", "democracy"],
      "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", "TEEN", 0.58),
     (["israeli", "palestinian", "israel", "palestine"],

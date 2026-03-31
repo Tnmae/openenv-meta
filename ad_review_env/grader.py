@@ -17,11 +17,6 @@ _AGE_ORDER = {"ALL_AGES": 0, "TEEN": 1, "MATURE": 2, "ADULT": 3}
 
 _AGE_DISTANCE_SCORE = {0: 1.0, 1: 0.5, 2: 0.15, 3: 0.0}
 
-# Platform-specific weight profiles: each platform adjusts component emphasis.
-# TikTok/Instagram skew young → age_rating matters more
-# LinkedIn is professional → category/reasoning matters more
-# Reddit is community-moderated → decision/reasoning matters more
-# X/Threads are fast-moving → efficiency matters more
 _PLATFORM_WEIGHTS: Dict[str, Dict[str, float]] = {
     "tiktok":    {"decision": 0.26, "category": 0.18, "reasoning": 0.16, "age_rating": 0.18, "efficiency": 0.10, "calibration": 0.12},
     "instagram": {"decision": 0.27, "category": 0.19, "reasoning": 0.17, "age_rating": 0.16, "efficiency": 0.10, "calibration": 0.11},
@@ -34,22 +29,18 @@ _PLATFORM_WEIGHTS: Dict[str, Dict[str, float]] = {
 }
 _DEFAULT_WEIGHTS = {"decision": 0.30, "category": 0.20, "reasoning": 0.18, "age_rating": 0.12, "efficiency": 0.10, "calibration": 0.10}
 
-# Platform-specific adjacency overrides: some platforms are stricter
-# On young-skewing platforms, approving harmful content is worse
 _PLATFORM_APPROVE_PENALTY: Dict[str, float] = {
-    "tiktok": 0.8,     # approving harmful on TikTok is 80% worse
+    "tiktok": 0.8,
     "instagram": 0.7,
     "youtube": 0.5,
 }
 
-# Platform-specific age rating strictness: young-skewing platforms
-# penalize age under-rating more heavily
 _PLATFORM_AGE_STRICTNESS: Dict[str, float] = {
-    "tiktok": 1.5,     # 50% stricter on age under-rating
+    "tiktok": 1.5,
     "instagram": 1.3,
     "youtube": 1.2,
-    "linkedin": 0.8,   # less strict (professional audience)
-    "reddit": 0.7,     # community-moderated, more permissive
+    "linkedin": 0.8,
+    "reddit": 0.7,
 }
 
 
@@ -84,7 +75,6 @@ def grade(
     gold: Dict[str, Any],
     steps_taken: int = 1,
 ) -> Tuple[float, Dict[str, float], str]:
-    # --- Extract and sanitize action fields ---
     decision = _safe_str(action_data.get("decision"))
     iab_category = _safe_str(action_data.get("iab_category"))
     garm_category = _safe_str(action_data.get("garm_category"))
@@ -96,7 +86,6 @@ def grade(
     if not isinstance(flagged_elements, list):
         flagged_elements = []
 
-    # --- Extract gold labels with safe defaults ---
     gold_decision = _safe_str(gold.get("gold_decision"))
     gold_iab = _safe_str(gold.get("gold_iab_category"))
     gold_garm = _safe_str(gold.get("gold_garm_category"))
@@ -109,24 +98,20 @@ def grade(
     correct = decision == gold_decision
     weights = _get_weights(platform)
 
-    # === Decision score ===
     if correct:
         decision_score = 1.0
     else:
         decision_score = _ADJACENCY.get((decision, gold_decision), 0.0)
-        # Platform penalty: approving harmful content on young platforms is worse
         if decision == "APPROVE" and gold_decision == "REJECT":
             penalty_mult = _PLATFORM_APPROVE_PENALTY.get(platform, 0.0)
             decision_score *= (1.0 - penalty_mult)
 
-    # === Category score: IAB + GARM + risk proximity ===
     iab_score = 1.0 if iab_category == gold_iab else 0.0
     garm_score = 1.0 if garm_category == gold_garm else 0.0
     risk_dist = abs(_RISK_ORDER.get(risk_level, 1) - _RISK_ORDER.get(gold_risk, 1))
     risk_score = max(0.0, 1.0 - risk_dist * 0.35)
     category_score = 0.4 * iab_score + 0.4 * garm_score + 0.2 * risk_score
 
-    # === Reasoning score: length + flagged elements + specificity ===
     reasoning_len = len(reasoning)
     if reasoning_len >= 120:
         length_score = 1.0
@@ -153,23 +138,18 @@ def grade(
 
     reasoning_score = min(1.0, length_score + flagging_bonus + specificity_bonus)
 
-    # === Age rating score: exact or adjacent, platform-adjusted ===
     age_dist = abs(_AGE_ORDER.get(age_rating, 1) - _AGE_ORDER.get(gold_age, 1))
     age_rating_score = _AGE_DISTANCE_SCORE.get(age_dist, 0.0)
-    # Platform strictness: on young platforms, under-rating age is penalized more
     strictness = _PLATFORM_AGE_STRICTNESS.get(platform, 1.0)
     predicted_age_ord = _AGE_ORDER.get(age_rating, 1)
     gold_age_ord = _AGE_ORDER.get(gold_age, 1)
     if predicted_age_ord < gold_age_ord:
-        # Under-rated: said ALL_AGES when it should be TEEN/MATURE/ADULT
         penalty = (1.0 - age_rating_score) * (strictness - 1.0)
         age_rating_score = max(0.0, age_rating_score - penalty)
 
-    # === Efficiency score ===
     step_mult = _STEP_EFFICIENCY.get(steps_taken, 0.4)
     efficiency_score = step_mult
 
-    # === Calibration score ===
     if correct:
         calibration_score = confidence
     else:
@@ -177,10 +157,8 @@ def grade(
         if confidence > 0.9:
             calibration_score *= 0.5
 
-    # === Difficulty multiplier ===
     difficulty_multiplier = {"easy": 1.0, "medium": 1.05, "hard": 1.1}.get(difficulty, 1.0)
 
-    # === Weighted total ===
     raw_total = (
         weights["decision"] * decision_score
         + weights["category"] * category_score

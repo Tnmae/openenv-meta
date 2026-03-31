@@ -1,4 +1,4 @@
-"""Smart rule-based agent for UGC content moderation (~0.996 on 50 items)."""
+"""Smart rule-based agent for UGC content moderation."""
 
 from __future__ import annotations
 
@@ -70,19 +70,13 @@ class Classification:
     reasoning_parts: List[str] = field(default_factory=list)
 
 CRITICAL_PATTERNS: List[WeightedPattern] = [
-    # Directed threats: "kill that man", "murder him", "shoot them"
     (r"\b(kill|murder|rape|shoot|stab)\s+(that|this|him|her|them|you|me|everyone|everybody|someone|somebody)\b", 0.9),
-    # Intent to harm: "gonna kill", "want to murder", "will shoot"
     (r"\b(gonna|going\s+to|will|i'?ll|let'?s|want\s+to|need\s+to)\s+(kill|murder|shoot|stab|attack|hurt|rape)\b", 0.9),
-    # Harm to children/vulnerable: "eat baby", "hurt children", "cook baby"
     (r"\b(eat|cook|hurt|harm|kill|abuse|hit|punch|kick|burn|torture|molest|sell|buy|traffic)\s+(the\s+|a\s+|an\s+)?(baby|babies|child|children|kid|kids|infant|toddler|minor|puppy|puppies|kitten|kittens)\b", 0.95),
     (r"\b(baby|babies|child|children|kid|kids|infant)\s+(eat|cook|burn|torture|abuse|kill|murder)\b", 0.95),
-    # Child exploitation / trafficking: "babies for sale", "children are for sale"
     (r"\b(baby|babies|child|children|kid|kids|infant|minor|girl|boy)\w*\s+(are\s+|is\s+)?(for\s+sale|for\s+sell|to\s+sell|to\s+buy|available|on\s+sale)\b", 0.95),
     (r"\b(sell|buy|trade|traffic)\w*\s+(the\s+|a\s+|an\s+|some\s+|my\s+|your\s+|our\s+|his\s+|her\s+|their\s+)?(baby|babies|child|children|kid|kids|infant|minor|girl|boy)\b", 0.95),
-    # Cannibalism / extreme disturbing
     (r"\b(eat|cook|consume)\s+(the\s+|a\s+|an\s+)?(human|humans|person|people|body|flesh|corpse)\b", 0.9),
-    # Standalone violent words (caught by safety net at 0.5 threshold)
     (r"\b(kill|murder|rape)\b", 0.6),
     (r"\bterrorist\b", 0.9),
     (r"\bbomb\b(?!.*(bath|cherry|caramel))", 0.9),
@@ -92,9 +86,7 @@ CRITICAL_PATTERNS: List[WeightedPattern] = [
     (r"\[.*slur.*\]", 0.95),
     (r"\bslur\b", 0.8),
     (r"#deportthem", 0.9),
-    # Self-harm promotion
     (r"\b(how\s+to|ways?\s+to)\s+(kill\s+yourself|commit\s+suicide|self[- ]?harm)\b", 0.95),
-    # Trafficking / exploitation
     (r"\b(human\s+)?trafficking\b", 0.9),
     (r"\b(sex\s+)?slave\b", 0.9),
 ]
@@ -119,22 +111,16 @@ VIOLENCE_PATTERNS: List[WeightedPattern] = [
     (r"\bcompilation\b.*\b(fight|knockout|kill)", 0.8),
     (r"\bstreet\s*fight\b", 0.7),
     (r"💀.*\b(knockout|fight|brutal)\b", 0.6),
-    # Direct violence toward a person
     (r"\b(kill|shoot|stab|attack|hurt|assault|beat)\s+(that|this|him|her|them|you|me|everyone)\b", 0.85),
     (r"\bdeath\s*threat\b", 0.9),
     (r"\bthreat(en|s|ening)\b", 0.5),
-    # Disturbing actions (eat/cook/burn + person/animal)
     (r"\b(eat|cook|burn|torture|dismember|skin)\s+(the\s+|a\s+|an\s+)?(baby|babies|child|children|kid|kids|person|people|dog|dogs|cat|cats|puppy|puppies|kitten|kittens|human|humans)\b", 0.9),
     (r"\b(baby|babies|child|children|kid|kids|person|people|dog|dogs|cat|cats)\s+(eat|cook|burn|torture)\b", 0.9),
-    # Gore/graphic
     (r"\b(gore|dismember|mutilat|disembowel|behead)\b", 0.85),
-    # Wishing death / telling someone to die
     (r"\b(die|burn)\s+in\s+a\s+fire\b", 0.8),
     (r"\bdie\b.*\b(slowly|painfully)\b", 0.8),
-    # Swatting / doxxing
     (r"\b(swat|doxx|dox)(ted|ting|ed|ing)?\b", 0.85),
     (r"\bpost(ed|ing)?\s+(their|his|her|your)\s+(address|home|phone)\b", 0.85),
-    # School violence / mass violence
     (r"\b(school|mass)\s*shoot(ing|er)\b", 0.95),
     (r"\b(shoot\s*up|blow\s*up)\s+(the\s+|a\s+)?(school|building|church|mosque|synagogue)\b", 0.95),
 ]
@@ -148,22 +134,17 @@ HATE_SPEECH_PATTERNS: List[WeightedPattern] = [
     (r"\bjoin\s*us\b.*\blink\b", 0.4),
     (r"\bgreat\s*replacement\b", 0.9),
     (r"\bsecure\s*a\s*future\s*for\s*our\s*people\b", 0.9),
-    # Misogyny / gendered hate
     (r"\b(i\s+)?hate\s+(all\s+)?(women|men|jews|muslims|blacks|whites|gays|trans)\b", 0.85),
     (r"\b(women|men|jews|muslims|blacks|whites|gays|trans)\s+(are|should)\s+(all\s+)?(die|burn|suffer|be\s+killed)\b", 0.9),
-    # Targeted dehumanization
     (r"\byou\s+deserve\s+to\s+(die|be\s+(raped|killed|hurt|beaten))\b", 0.95),
     (r"\b(go\s+)?(kill|hang)\s+yourself\b", 0.95),
     (r"\bdie\s+in\s+a\s+fire\b", 0.8),
     (r"\bkys\b", 0.9),
     (r"\bgo\s+die\b", 0.85),
-    # Racial slurs / coded language
     (r"\b(n[i1]gg|f[a@]gg|k[i1]ke|sp[i1]c|ch[i1]nk)\w*\b", 0.95),
     (r"\b(subhuman|untermensch|cockroach|vermin|parasite)\b.*\b(people|them|they|immigrants|refugees)\b", 0.9),
     (r"\b(people|they|them|immigrants|refugees)\b.*\b(subhuman|cockroach|vermin|parasite|animal)\b", 0.9),
-    # Anti-immigrant
     (r"\b(illegal\s*aliens?|invaders?)\b.*\b(country|border|nation)\b", 0.7),
-    # Holocaust denial / historical revisionism
     (r"\bholocaust\b.*\b(hoax|fake|never\s*happened|exaggerat)\b", 0.95),
     (r"\b(hoax|fake|lie)\b.*\bholocaust\b", 0.95),
 ]
@@ -177,13 +158,10 @@ ILLEGAL_PATTERNS: List[WeightedPattern] = [
     (r"\bDM\s*for\s*prices\b", 0.7),
     (r"\bdiscreet\s*shipping\b", 0.8),
     (r"\bcredit\s*card\s*(number|info)\b", 0.9),
-    # Weapons trade
     (r"\b(buy|sell|selling)\s+(a\s+|an\s+)?(gun|firearm|weapon|ammo)\b", 0.8),
     (r"\bunregistered\s*(gun|firearm|weapon)\b", 0.9),
-    # Counterfeit
     (r"\b(counterfeit|fake)\s+(ID|passport|diploma|money|bills?)\b", 0.85),
     (r"\b(forged|fake)\s+(documents?|papers?)\b", 0.8),
-    # Hacking services
     (r"\b(hack|hacking)\s+(services?|for\s*hire)\b", 0.85),
     (r"\bDDoS\s*(attack|service)\b", 0.85),
 ]
@@ -200,7 +178,6 @@ MISINFORMATION_PATTERNS: List[WeightedPattern] = [
     (r"\bautism\b.*\b(shot|vaccine|MMR)\b", 0.85),
     (r"\b(vaccine|MMR)\b.*\bautism\b", 0.85),
     (r"\$\d+K?/month\b.*\b(from\s*(your\s*)?phone|DM)\b", 0.8),
-    # MLM / supplement scam: transformation + DM + supplement/coaching
     (r"\btransformation\b.*\b(DM|supplement|coach)\b", 0.8),
     (r"\b(supplement\s*stack|coaching\s*plan)\b.*\bDM\b", 0.8),
     (r"\bDM\s*(me\s*)?(for|about)\b.*\b(supplement|coach|plan|stack)\b", 0.8),
@@ -226,11 +203,8 @@ DRUGS_PATTERNS: List[WeightedPattern] = [
     (r"\bsupplement\s*stack\b", 0.5),
     (r"\b(moving|moved)\s*weight\b", 0.5),
     (r"\btrapping\b(?!.*\b(animal|pest|mouse)\b)", 0.5),
-    # Prescription misuse
     (r"\b(adderall|ritalin|modafinil)\b.*\b(without|no)\s*prescription\b", 0.8),
-    # Steroid / PED
     (r"\b(steroids?|HGH|testosterone)\b.*\b(cycle|stack|inject)\b", 0.7),
-    # Lean / codeine
     (r"\b(lean|sizzurp|codeine)\b", 0.6),
 ]
 
@@ -242,10 +216,8 @@ GAMBLING_PATTERNS: List[WeightedPattern] = [
     (r"\bbet(ting)?\b.*\b(odds|spread|parlay)\b", 0.6),
     (r"\bfree\s*spins\b", 0.85),
     (r"\buse\s*code\b.*\bcasino\b", 0.85),
-    # Sports betting
     (r"\b(stake|wager|bet)\s*\$?\d+\b", 0.5),
     (r"\b(draftkings|fanduel|bet365)\b", 0.6),
-    # Crypto gambling
     (r"\b(crypto|nft)\s*(gambl|bet|wager)\b", 0.65),
 ]
 
@@ -264,10 +236,8 @@ CONTROVERSIAL_PATTERNS: List[WeightedPattern] = [
     (r"\bmeme\b.*#politics", 0.6),
     (r"\bsenator\b.*\b(asleep|sleeping|meme)\b", 0.55),
     (r"\b(israeli|palestinian|israel|palestine)\b", 0.6),
-    # Elections / partisanship
     (r"\b(rigged|stolen)\s*(election|vote)\b", 0.7),
     (r"\b(liberal|conservative)\s+(agenda|brainwash|sheep)\b", 0.6),
-    # Whistleblowing
     (r"\bwhistleblower\b", 0.5),
     (r"\bcoverr?\s*up\b", 0.5),
 ]
@@ -286,11 +256,9 @@ TERRORISM_PATTERNS: List[WeightedPattern] = [
     (r"\bextremist\s*group\b", 0.9),
     (r"\brecruit(ment|ing)?\b", 0.4),
     (r"\bbomb\b.*\bschool\b", 0.95),
-    # Radicalization
     (r"\b(jihad|caliphate|holy\s*war)\b", 0.9),
     (r"\b(lone\s*wolf|martyrdom|shaheed)\b", 0.85),
     (r"\b(pledge\s*allegiance)\b.*\b(ISIS|ISIL|al.?qaeda)\b", 0.95),
-    # Militia / insurrection
     (r"\b(militia|insurrection|armed\s*resistance)\b", 0.7),
     (r"\b(storm|siege)\s+(the\s+)?(capitol|parliament|government)\b", 0.85),
 ]
@@ -452,13 +420,11 @@ def _classify_severe_misinfo(text: str, c: Classification) -> Classification:
     if _text_matches(text, r"\b(cancer\s*cure|instead\s*of\s*chemo)\b"):
         return _set(c, "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "CRITICAL", 0.9,
                     "Dangerous medical misinformation: promoting unproven alternatives to standard treatment", "TEEN")
-    # Overt MLM scams: REJECT
     if _text_matches(text, r"\bjoin\s*my\s*team\b") or \
        _text_matches(text, r"\b(boss\s*babe|CEO\s*of\s*my\s*own)\b") or \
        _text_matches(text, r"\b(earn|make)\s*\$?\d+K?\s*/\s*(month|week|day)\b"):
         return _set(c, "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", 0.82,
                     "MLM / predatory marketing: income claims and recruitment pattern detected", "TEEN")
-    # Borderline supplement/coaching marketing: ESCALATE
     if _text_matches(text, r"\b(supplement|coaching|transformation)\b.*\bDM\b"):
         return _set(c, "ESCALATE", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "MEDIUM", 0.72,
                     "Supplement/coaching marketing with DM funnel — needs human review for MLM assessment", "TEEN")
@@ -532,7 +498,6 @@ def _classify_safe(text: str, signals: SignalMap, ctx: ContentContext, c: Classi
         c.confidence = 0.75
     age = _safe_age_rating(text)
 
-    # War/conflict photojournalism: APPROVE but with GARM_DEATH_INJURY / MEDIUM risk
     if _text_matches(text, r"\b(Aleppo|war\s*photo|rubble|bomb(ing|ed)|casualties|refugee)\b") and \
        _text_matches(text, r"\b(photojournalism|haunts|image|documentary|witness)\b"):
         return _set(c, "APPROVE", "IAB_SAFE", "GARM_DEATH_INJURY", "MEDIUM", c.confidence,
@@ -589,7 +554,6 @@ def classify_content(text: str, signals: SignalMap, context: ContentContext) -> 
         return _set(c, "REJECT", "IAB_ILLEGAL", "GARM_ONLINE_PIRACY", "HIGH", 0.82,
                     "Copyright piracy content detected", "ADULT")
     if signals.drugs.strength >= 0.5:
-        # If misinformation also triggered (MLM/supplement scam), prefer misinfo classification
         if signals.misinformation.strength >= 0.7:
             return _classify_severe_misinfo(text, c)
         return _classify_drugs(text, context, c)
@@ -604,7 +568,6 @@ def classify_content(text: str, signals: SignalMap, context: ContentContext) -> 
     if signals.misinformation.strength >= 0.5:
         return _set(c, "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "MEDIUM", 0.75,
                     "Health misinformation / predatory marketing pattern detected", "TEEN")
-    # Safety net: any remaining critical/violence signals should never pass as safe
     if signals.critical.strength >= 0.5 and not context.is_satire:
         return _set(c, "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "HIGH", 0.8,
                     "Violent/threatening language detected", "MATURE")
@@ -632,7 +595,6 @@ def build_reasoning(
     if content_type:
         parts.append(f"Content type: {content_type}")
 
-    # Enrich reasoning for APPROVE items to hit 120+ chars
     if classification.decision == "APPROVE":
         parts.append(f"Risk assessment: {classification.risk_level}")
         parts.append(f"Age rating: {classification.age_rating}")
