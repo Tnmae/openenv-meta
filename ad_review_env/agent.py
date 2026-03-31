@@ -69,6 +69,11 @@ class Classification:
     reasoning_parts: List[str] = field(default_factory=list)
 
 CRITICAL_PATTERNS: List[WeightedPattern] = [
+    # Directed threats: "kill that man", "murder him", "shoot them"
+    (r"\b(kill|murder|rape|shoot|stab)\s+(that|this|him|her|them|you|me|everyone|everybody|someone|somebody)\b", 0.9),
+    # Intent to harm: "gonna kill", "want to murder", "will shoot"
+    (r"\b(gonna|going\s+to|will|i'?ll|let'?s|want\s+to|need\s+to)\s+(kill|murder|shoot|stab|attack|hurt|rape)\b", 0.9),
+    # Standalone violent words (moderate weight — caught by backup threshold)
     (r"\b(kill|murder|rape)\b", 0.6),
     (r"\bterrorist\b", 0.9),
     (r"\bbomb\b(?!.*(bath|cherry|caramel))", 0.9),
@@ -93,6 +98,10 @@ VIOLENCE_PATTERNS: List[WeightedPattern] = [
     (r"\bcompilation\b.*\b(fight|knockout|kill)", 0.8),
     (r"\bstreet\s*fight\b", 0.7),
     (r"💀.*\b(knockout|fight|brutal)\b", 0.6),
+    # Direct violence toward a person
+    (r"\b(kill|shoot|stab|attack|hurt|assault|beat)\s+(that|this|him|her|them|you|me|everyone)\b", 0.85),
+    (r"\bdeath\s*threat\b", 0.9),
+    (r"\bthreat(en|s|ening)\b", 0.5),
 ]
 
 HATE_SPEECH_PATTERNS: List[WeightedPattern] = [
@@ -441,6 +450,13 @@ def classify_content(text: str, signals: SignalMap, context: ContentContext) -> 
     if signals.misinformation.strength >= 0.5:
         return _set(c, "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "MEDIUM", 0.75,
                     "Health misinformation / predatory marketing pattern detected")
+    # Safety net: any remaining critical/violence signals should never pass as safe
+    if signals.critical.strength >= 0.5 and not context.is_satire:
+        return _set(c, "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "HIGH", 0.8,
+                    "Violent/threatening language detected")
+    if signals.violence.strength >= 0.4 and not context.is_satire:
+        return _set(c, "ESCALATE", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "MEDIUM", 0.65,
+                    "Potentially violent content — needs human review")
     return _classify_safe(signals, context, c)
 
 
