@@ -196,34 +196,65 @@ def should_request_context(difficulty: str) -> bool:
     return difficulty != "easy"
 
 
-def run_episode_via_api(client: OpenAI, env_url: str, task: Dict[str, Any]) -> Dict[str, Any]:
-    reset_resp = requests.post(f"{env_url}/reset", timeout=10)
+def run_episode(client: OpenAI, env_url: str) -> Dict[str, Any]:
+    """Run one episode: reset → optional REQUEST_CONTEXT → DECIDE via /step."""
+    reset_resp = requests.post(f"{env_url}/reset", timeout=30)
     reset_resp.raise_for_status()
-    obs = reset_resp.json().get("observation", reset_resp.json())
+    data = reset_resp.json()
+    obs = data.get("observation", data)
 
-    content_text = obs.get("content_text", task["content_text"])
-    content_type = obs.get("content_type", task["content_type"])
-    platform = obs.get("platform", task["platform"])
-    difficulty = task["difficulty"]
-
-    action = call_llm(client, content_text, content_type, platform)
-    steps_taken = 1
+    content_text = obs["content_text"]
+    content_type = obs["content_type"]
+    platform = obs["platform"]
+    content_id = obs["content_id"]
+    difficulty = obs.get("difficulty", "medium")
+    additional_context = None
+    steps = 0
 
     if should_request_context(difficulty):
-        ctx_payload = {"action": {
-            "action_type": "REQUEST_CONTEXT",
-            "reasoning": "Requesting author history and community signals for better assessment.",
-        }}
-        ctx_resp = requests.post(f"{env_url}/step", json=ctx_payload, timeout=15)
+        ctx_action = {
+            "action": {
+                "action_type": "REQUEST_CONTEXT",
+                "reasoning": "Requesting author history and community signals for better assessment.",
+            }
+        }
+        ctx_resp = requests.post(f"{env_url}/step", json=ctx_action, timeout=30)
         if ctx_resp.ok:
-            ctx_obs = ctx_resp.json().get("observation", ctx_resp.json())
-            additional_context = ctx_obs.get("additional_context")
-            if not ctx_obs.get("done", False) and additional_context:
-                action = call_llm(client, content_text, content_type, platform,
-                                  additional_context=additional_context)
-                steps_taken = 2
+            ctx_data = ctx_resp.json()
+            ctx_obs = ctx_data.get("observation", ctx_data)
+            if not ctx_data.get("done", False):
+                additional_context = ctx_obs.get("additional_context")
+                steps = 1
 
-    return {"action": action, "steps_taken": steps_taken}
+    llm_action = call_llm(client, content_text, content_type, platform,
+                          additional_context=additional_context)
+
+    decide_payload = {
+        "action": {
+            "action_type": "DECIDE",
+            "decision": llm_action["decision"],
+            "iab_category": llm_action["iab_category"],
+            "garm_category": llm_action["garm_category"],
+            "risk_level": llm_action["risk_level"],
+            "reasoning": llm_action["reasoning"],
+            "confidence": llm_action["confidence"],
+            "flagged_elements": llm_action["flagged_elements"],
+        }
+    }
+    step_resp = requests.post(f"{env_url}/step", json=decide_payload, timeout=30)
+    step_resp.raise_for_status()
+    result = step_resp.json()
+    obs_final = result.get("observation", result)
+    reward = result.get("reward", obs_final.get("total_score", 0.0))
+
+    return {
+        "content_id": content_id,
+        "difficulty": difficulty,
+        "decision": llm_action["decision"],
+        "gold_decision": obs_final.get("gold_decision", ""),
+        "reward": reward,
+        "steps": steps + 1,
+    }
 
 
 def run_evaluation(client: OpenAI, env_url: str) -> Dict[str, Any]:
@@ -234,47 +265,30 @@ def run_evaluation(client: OpenAI, env_url: str) -> Dict[str, Any]:
 
     resp = requests.get(f"{env_url}/tasks", params={"n": 50, "seed": 42}, timeout=30)
     resp.raise_for_status()
-    tasks = resp.json()["tasks"]
-    print(f"Fetched {len(tasks)} tasks\n")
+    n_tasks = resp.json()["count"]
+    print(f"Running {n_tasks} episodes via reset/step loop\n")
 
     scores_by_difficulty: Dict[str, List[float]] = {"easy": [], "medium": [], "hard": []}
     all_scores: List[float] = []
     results: List[Dict[str, Any]] = []
 
-    for i, task in enumerate(tasks, 1):
-        cid, diff = task["content_id"], task["difficulty"]
-
-        action = call_llm(client, task["content_text"], task["content_type"], task["platform"])
-        steps_taken = 1
-
-        if should_request_context(diff):
-            action = call_llm(
-                client, task["content_text"], task["content_type"], task["platform"],
-                additional_context="(Context provided by environment in live episode.)",
-            )
-            steps_taken = 2
-
-        grade_resp = requests.post(
-            f"{env_url}/grader",
-            json={"content_id": cid, "steps_taken": steps_taken, **action},
-            timeout=30,
-        )
-        grade_resp.raise_for_status()
-        result = grade_resp.json()
-
-        score = result["total_reward"]
+    for i in range(1, n_tasks + 1):
+        episode = run_episode(client, env_url)
+        score = episode["reward"]
+        diff = episode["difficulty"]
         all_scores.append(score)
         scores_by_difficulty[diff].append(score)
 
-        ok = "+" if result["your_decision"] == result["gold_decision"] else "-"
-        print(f"  [{ok}] {i:2d}/{len(tasks)} {cid:12s} {diff:6s} "
-              f"pred={result['your_decision']:8s} gold={result['gold_decision']:8s} "
-              f"score={score:.3f}")
+        ok = "+" if episode["decision"] == episode["gold_decision"] else "-"
+        print(f"  [{ok}] {i:2d}/{n_tasks} {episode['content_id']:12s} {diff:6s} "
+              f"pred={episode['decision']:8s} gold={episode['gold_decision']:8s} "
+              f"score={score:.3f}  steps={episode['steps']}")
 
         results.append({
-            "content_id": cid, "difficulty": diff,
-            "decision": result["your_decision"],
-            "gold_decision": result["gold_decision"],
+            "content_id": episode["content_id"],
+            "difficulty": diff,
+            "decision": episode["decision"],
+            "gold_decision": episode["gold_decision"],
             "score": score,
         })
 
