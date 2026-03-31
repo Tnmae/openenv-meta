@@ -1,3 +1,13 @@
+---
+title: Brand-Safe Ad Review
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Brand-Safe Ad Review Environment
 
 An OpenEnv RL environment for UGC content moderation. Agents classify posts using **IAB Content Taxonomy 3.0** and **GARM Brand Safety Floor** standards, deciding to approve, reject, or escalate. Multi-step episodes let agents request author history and community signals before deciding.
