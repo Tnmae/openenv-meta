@@ -74,14 +74,22 @@ CRITICAL_PATTERNS: List[WeightedPattern] = [
     (r"\b(kill|murder|rape|shoot|stab)\s+(that|this|him|her|them|you|me|everyone|everybody|someone|somebody)\b", 0.9),
     # Intent to harm: "gonna kill", "want to murder", "will shoot"
     (r"\b(gonna|going\s+to|will|i'?ll|let'?s|want\s+to|need\s+to)\s+(kill|murder|shoot|stab|attack|hurt|rape)\b", 0.9),
-    # Standalone violent words (moderate weight — caught by backup threshold)
+    # Harm to children/vulnerable: "eat baby", "hurt children", "cook baby"
+    (r"\b(eat|cook|hurt|harm|kill|abuse|hit|punch|kick|burn|torture|molest)\s+(the\s+|a\s+|an\s+)?(baby|babies|child|children|kid|kids|infant|toddler|minor|puppy|puppies|kitten|kittens)\b", 0.95),
+    (r"\b(baby|babies|child|children|kid|kids|infant)\s+(eat|cook|burn|torture|abuse|kill|murder)\b", 0.95),
+    # Cannibalism / extreme disturbing
+    (r"\b(eat|cook|consume)\s+(the\s+|a\s+|an\s+)?(human|humans|person|people|body|flesh|corpse)\b", 0.9),
+    # Standalone violent words (caught by safety net at 0.5 threshold)
     (r"\b(kill|murder|rape)\b", 0.6),
     (r"\bterrorist\b", 0.9),
     (r"\bbomb\b(?!.*(bath|cherry|caramel))", 0.9),
     (r"\bchild\s*porn", 1.0),
+    (r"\bpedophil", 1.0),
     (r"\[.*slur.*\]", 0.95),
     (r"\bslur\b", 0.8),
     (r"#deportthem", 0.9),
+    # Self-harm promotion (not reporting — promoting)
+    (r"\b(how\s+to|ways?\s+to)\s+(kill\s+yourself|commit\s+suicide|self[- ]?harm)\b", 0.95),
 ]
 
 ADULT_PATTERNS: List[WeightedPattern] = [
@@ -103,6 +111,14 @@ VIOLENCE_PATTERNS: List[WeightedPattern] = [
     (r"\b(kill|shoot|stab|attack|hurt|assault|beat)\s+(that|this|him|her|them|you|me|everyone)\b", 0.85),
     (r"\bdeath\s*threat\b", 0.9),
     (r"\bthreat(en|s|ening)\b", 0.5),
+    # Disturbing actions (eat/cook/burn + person/animal)
+    (r"\b(eat|cook|burn|torture|dismember|skin)\s+(the\s+|a\s+|an\s+)?(baby|babies|child|children|kid|kids|person|people|dog|dogs|cat|cats|puppy|puppies|kitten|kittens|human|humans)\b", 0.9),
+    (r"\b(baby|babies|child|children|kid|kids|person|people|dog|dogs|cat|cats)\s+(eat|cook|burn|torture)\b", 0.9),
+    # Gore/graphic
+    (r"\b(gore|dismember|mutilat|disembowel|behead)\b", 0.85),
+    # Wishing death / telling someone to die
+    (r"\b(die|burn)\s+in\s+a\s+fire\b", 0.8),
+    (r"\bdie\b.*\b(slowly|painfully)\b", 0.8),
 ]
 
 HATE_SPEECH_PATTERNS: List[WeightedPattern] = [
@@ -114,6 +130,15 @@ HATE_SPEECH_PATTERNS: List[WeightedPattern] = [
     (r"\bjoin\s*us\b.*\blink\b", 0.4),
     (r"\bgreat\s*replacement\b", 0.9),
     (r"\bsecure\s*a\s*future\s*for\s*our\s*people\b", 0.9),
+    # Misogyny / gendered hate
+    (r"\b(i\s+)?hate\s+(all\s+)?(women|men|jews|muslims|blacks|whites|gays|trans)\b", 0.85),
+    (r"\b(women|men|jews|muslims|blacks|whites|gays|trans)\s+(are|should)\s+(all\s+)?(die|burn|suffer|be\s+killed)\b", 0.9),
+    # Targeted dehumanization
+    (r"\byou\s+deserve\s+to\s+(die|be\s+(raped|killed|hurt|beaten))\b", 0.95),
+    (r"\b(go\s+)?(kill|hang)\s+yourself\b", 0.95),
+    (r"\bdie\s+in\s+a\s+fire\b", 0.8),
+    (r"\bkys\b", 0.9),
+    (r"\bgo\s+die\b", 0.85),
 ]
 
 ILLEGAL_PATTERNS: List[WeightedPattern] = [

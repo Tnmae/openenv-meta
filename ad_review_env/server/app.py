@@ -127,7 +127,7 @@ def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
     total_reward, scores, feedback = grade(action_data, gold, steps_taken=request.steps_taken)
     return {
         "content_id": request.content_id, "difficulty": gold["difficulty"],
-        "your_decision": request.decision,
+        "your_decision": request.decision, "gold_decision": gold["gold_decision"],
         "scores": scores, "total_reward": total_reward, "feedback": feedback,
         "steps_taken": request.steps_taken,
     }
