@@ -75,8 +75,11 @@ CRITICAL_PATTERNS: List[WeightedPattern] = [
     # Intent to harm: "gonna kill", "want to murder", "will shoot"
     (r"\b(gonna|going\s+to|will|i'?ll|let'?s|want\s+to|need\s+to)\s+(kill|murder|shoot|stab|attack|hurt|rape)\b", 0.9),
     # Harm to children/vulnerable: "eat baby", "hurt children", "cook baby"
-    (r"\b(eat|cook|hurt|harm|kill|abuse|hit|punch|kick|burn|torture|molest)\s+(the\s+|a\s+|an\s+)?(baby|babies|child|children|kid|kids|infant|toddler|minor|puppy|puppies|kitten|kittens)\b", 0.95),
+    (r"\b(eat|cook|hurt|harm|kill|abuse|hit|punch|kick|burn|torture|molest|sell|buy|traffic)\s+(the\s+|a\s+|an\s+)?(baby|babies|child|children|kid|kids|infant|toddler|minor|puppy|puppies|kitten|kittens)\b", 0.95),
     (r"\b(baby|babies|child|children|kid|kids|infant)\s+(eat|cook|burn|torture|abuse|kill|murder)\b", 0.95),
+    # Child exploitation / trafficking: "babies for sale", "children are for sale"
+    (r"\b(baby|babies|child|children|kid|kids|infant|minor|girl|boy)\w*\s+(are\s+|is\s+)?(for\s+sale|for\s+sell|to\s+sell|to\s+buy|available|on\s+sale)\b", 0.95),
+    (r"\b(sell|buy|trade|traffic)\w*\s+(the\s+|a\s+|an\s+|some\s+|my\s+|your\s+|our\s+|his\s+|her\s+|their\s+)?(baby|babies|child|children|kid|kids|infant|minor|girl|boy)\b", 0.95),
     # Cannibalism / extreme disturbing
     (r"\b(eat|cook|consume)\s+(the\s+|a\s+|an\s+)?(human|humans|person|people|body|flesh|corpse)\b", 0.9),
     # Standalone violent words (caught by safety net at 0.5 threshold)
@@ -85,11 +88,15 @@ CRITICAL_PATTERNS: List[WeightedPattern] = [
     (r"\bbomb\b(?!.*(bath|cherry|caramel))", 0.9),
     (r"\bchild\s*porn", 1.0),
     (r"\bpedophil", 1.0),
+    (r"\bcsam\b", 1.0),
     (r"\[.*slur.*\]", 0.95),
     (r"\bslur\b", 0.8),
     (r"#deportthem", 0.9),
-    # Self-harm promotion (not reporting — promoting)
+    # Self-harm promotion
     (r"\b(how\s+to|ways?\s+to)\s+(kill\s+yourself|commit\s+suicide|self[- ]?harm)\b", 0.95),
+    # Trafficking / exploitation
+    (r"\b(human\s+)?trafficking\b", 0.9),
+    (r"\b(sex\s+)?slave\b", 0.9),
 ]
 
 ADULT_PATTERNS: List[WeightedPattern] = [

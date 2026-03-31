@@ -56,43 +56,83 @@ def _strip_gold_labels(item: Dict[str, Any]) -> Dict[str, Any]:
     return {k: item[k] for k in ("content_id", "content_text", "content_type", "platform", "difficulty")}
 
 
-_CRITICAL_KW = ["kill", "murder", "terrorist", "bomb", "rape", "child porn", "cp ", "slur"]
-_REJECT_KW = [
-    "f***", "fuck", "shit", "bitch", "hate", "illegal", "pirat", "xanax",
-    "no prescription", "18+", "adult content", "explicit", "graphic violence",
-    "knockouts", "brutal", "proud boys", "cancer cure", "doctors don't want",
-]
-_ESCALATE_KW = [
-    "psilocybin", "microdosing", "crypto", "gambling", "jackpot", "controversial",
-    "leaked", "government lying", "wake up sheeple", "gun control", "abortion",
+_BASELINE_RULES = [
+    # (keywords_any, decision, iab, garm, risk, age, confidence)
+    # Critical/violence
+    (["kill", "murder", "rape", "terrorist", "bomb"], "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "CRITICAL", "MATURE", 0.85),
+    (["child porn", "pedophil", "csam"], "REJECT", "IAB_ADULT", "GARM_ADULT_EXPLICIT", "CRITICAL", "ADULT", 0.95),
+    # Hate speech / extremism
+    (["proud boys", "great replacement", "white power", "supremacist", "deportthem", "slur"],
+     "REJECT", "IAB_HATE_SPEECH", "GARM_HATE_SPEECH", "HIGH", "ADULT", 0.85),
+    # Adult content
+    (["18+", "adult content", "explicit", "nude", "xxx", "🔞", "uncensored"],
+     "REJECT", "IAB_ADULT", "GARM_ADULT_EXPLICIT", "CRITICAL", "ADULT", 0.88),
+    # Profanity
+    (["f***", "fuck", "shit", "bitch"],
+     "REJECT", "IAB_PROFANITY", "GARM_OBSCENITY_PROFANITY", "HIGH", "MATURE", 0.78),
+    # Violence
+    (["graphic violence", "knockouts", "brutal", "street fight"],
+     "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "HIGH", "MATURE", 0.82),
+    # Illegal
+    (["xanax", "no prescription", "pirat", "credit card number", "discreet shipping"],
+     "REJECT", "IAB_ILLEGAL", "GARM_CRIME_HARMFUL", "HIGH", "ADULT", 0.85),
+    # Misinformation
+    (["cancer cure", "doctors don't want", "wake up sheeple", "one weird trick", "instead of chemo"],
+     "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "MEDIUM", "TEEN", 0.78),
+    (["autism", "vaccine", "mmr"],
+     "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", "TEEN", 0.75),
+    # MLM / scam
+    (["join my team", "boss babe", "$10k/month", "earn from your phone"],
+     "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", "TEEN", 0.80),
+    # Drugs (escalate)
+    (["psilocybin", "microdosing", "cbd"],
+     "ESCALATE", "IAB_DRUGS", "GARM_SAFE", "MEDIUM", "TEEN", 0.60),
+    # Gambling (escalate)
+    (["gambling", "jackpot", "casino", "free spins", "slot"],
+     "ESCALATE", "IAB_GAMBLING", "GARM_SAFE", "MEDIUM", "TEEN", 0.62),
+    # Controversial / political
+    (["gun control", "abortion", "leaked", "crypto", "government lying", "politician", "democracy"],
+     "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", "TEEN", 0.58),
+    (["israeli", "palestinian", "israel", "palestine"],
+     "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", "TEEN", 0.55),
 ]
 
 
 def baseline_agent(text: str, content_type: str = "", platform: str = "") -> Dict[str, Any]:
     text_lower = text.lower()
-    flagged = [kw for kw in _CRITICAL_KW + _REJECT_KW + _ESCALATE_KW if kw in text_lower]
+    all_kws = []
+    for kws in _BASELINE_RULES:
+        all_kws.extend(kws[0])
+    flagged = [kw for kw in all_kws if kw in text_lower][:5]
 
-    if any(kw in text_lower for kw in _CRITICAL_KW):
-        decision, iab, garm, risk, confidence, age = (
-            "REJECT", "IAB_HATE_SPEECH", "GARM_HATE_SPEECH", "CRITICAL", 0.9, "ADULT")
-    elif any(kw in text_lower for kw in _REJECT_KW):
-        decision, iab, garm, risk, confidence, age = (
-            "REJECT", "IAB_PROFANITY", "GARM_OBSCENITY_PROFANITY", "HIGH", 0.75, "MATURE")
-    elif any(kw in text_lower for kw in _ESCALATE_KW):
-        decision, iab, garm, risk, confidence, age = (
-            "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", 0.6, "TEEN")
-    else:
-        decision, iab, garm, risk, confidence, age = (
-            "APPROVE", "IAB_SAFE", "GARM_SAFE", "LOW", 0.8, "ALL_AGES")
+    for keywords, decision, iab, garm, risk, age, confidence in _BASELINE_RULES:
+        if any(kw in text_lower for kw in keywords):
+            reason_action = "rejected" if decision == "REJECT" else "escalated"
+            reasoning = (
+                f"Keyword baseline {reason_action} this {content_type or 'content'}. "
+                f"Flagged elements: {', '.join(flagged[:3]) if flagged else 'none'}. "
+                f"Category: {iab} / {garm}. Risk assessment: {risk}. "
+                f"Platform: {platform or 'unknown'}. Age rating: {age}. "
+                f"This content violates brand safety guidelines."
+            )
+            return {
+                "decision": decision, "iab_category": iab, "garm_category": garm,
+                "risk_level": risk, "age_rating": age,
+                "reasoning": reasoning[:500],
+                "confidence": confidence, "flagged_elements": flagged,
+            }
 
     reasoning = (
-        f"Keyword scan: {'flagged ' + str(flagged[:3]) if flagged else 'no red-flag keywords'}. "
-        f"Heuristic decision."
+        f"Keyword baseline approved this {content_type or 'content'}. "
+        f"No harmful signals detected in keyword scan. "
+        f"Platform: {platform or 'unknown'}. Content appears brand-safe. "
+        f"No profanity, violence, hate speech, or misinformation detected."
     )
     return {
-        "decision": decision, "iab_category": iab, "garm_category": garm,
-        "risk_level": risk, "age_rating": age, "reasoning": reasoning,
-        "confidence": confidence, "flagged_elements": flagged[:5],
+        "decision": "APPROVE", "iab_category": "IAB_SAFE", "garm_category": "GARM_SAFE",
+        "risk_level": "LOW", "age_rating": "ALL_AGES",
+        "reasoning": reasoning,
+        "confidence": 0.7, "flagged_elements": [],
     }
 
 
