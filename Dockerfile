@@ -16,7 +16,10 @@ COPY ad_review_env/server/ ./server/
 COPY openenv.yaml .
 COPY inference.py .
 
-RUN uv pip install --system -e "." || pip install openenv-core
+# Force cache bust on code changes
+RUN echo "build-v6"
+
+RUN uv pip install --system -e ".[inference]" || pip install openenv-core openai requests
 
 EXPOSE 8000
 

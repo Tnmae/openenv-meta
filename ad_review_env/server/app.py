@@ -56,43 +56,71 @@ def _strip_gold_labels(item: Dict[str, Any]) -> Dict[str, Any]:
     return {k: item[k] for k in ("content_id", "content_text", "content_type", "platform", "difficulty")}
 
 
-_CRITICAL_KW = ["kill", "murder", "terrorist", "bomb", "rape", "child porn", "cp ", "slur"]
-_REJECT_KW = [
-    "f***", "fuck", "shit", "bitch", "hate", "illegal", "pirat", "xanax",
-    "no prescription", "18+", "adult content", "explicit", "graphic violence",
-    "knockouts", "brutal", "proud boys", "cancer cure", "doctors don't want",
-]
-_ESCALATE_KW = [
-    "psilocybin", "microdosing", "crypto", "gambling", "jackpot", "controversial",
-    "leaked", "government lying", "wake up sheeple", "gun control", "abortion",
+_BASELINE_RULES = [
+    (["kill", "murder", "rape", "terrorist", "bomb"], "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "CRITICAL", "MATURE", 0.85),
+    (["child porn", "pedophil", "csam"], "REJECT", "IAB_ADULT", "GARM_ADULT_EXPLICIT", "CRITICAL", "ADULT", 0.95),
+    (["proud boys", "great replacement", "white power", "supremacist", "deportthem", "slur"],
+     "REJECT", "IAB_HATE_SPEECH", "GARM_HATE_SPEECH", "HIGH", "ADULT", 0.85),
+    (["18+", "adult content", "explicit", "nude", "xxx", "🔞", "uncensored"],
+     "REJECT", "IAB_ADULT", "GARM_ADULT_EXPLICIT", "CRITICAL", "ADULT", 0.88),
+    (["f***", "fuck", "shit", "bitch"],
+     "REJECT", "IAB_PROFANITY", "GARM_OBSCENITY_PROFANITY", "HIGH", "MATURE", 0.78),
+    (["graphic violence", "knockouts", "brutal", "street fight"],
+     "REJECT", "IAB_VIOLENCE", "GARM_DEATH_INJURY", "HIGH", "MATURE", 0.82),
+    (["xanax", "no prescription", "pirat", "credit card number", "discreet shipping"],
+     "REJECT", "IAB_ILLEGAL", "GARM_CRIME_HARMFUL", "HIGH", "ADULT", 0.85),
+    (["cancer cure", "doctors don't want", "wake up sheeple", "one weird trick", "instead of chemo"],
+     "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "MEDIUM", "TEEN", 0.78),
+    (["autism", "vaccine", "mmr"],
+     "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", "TEEN", 0.75),
+    (["join my team", "boss babe", "$10k/month", "earn from your phone"],
+     "REJECT", "IAB_MISINFORMATION", "GARM_SPAM_HARMFUL", "HIGH", "TEEN", 0.80),
+    (["psilocybin", "microdosing", "cbd"],
+     "ESCALATE", "IAB_DRUGS", "GARM_SAFE", "MEDIUM", "TEEN", 0.60),
+    (["gambling", "jackpot", "casino", "free spins", "slot"],
+     "ESCALATE", "IAB_GAMBLING", "GARM_SAFE", "MEDIUM", "TEEN", 0.62),
+    (["gun control", "abortion", "leaked", "crypto", "government lying", "politician", "democracy"],
+     "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", "TEEN", 0.58),
+    (["israeli", "palestinian", "israel", "palestine"],
+     "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", "TEEN", 0.55),
 ]
 
 
 def baseline_agent(text: str, content_type: str = "", platform: str = "") -> Dict[str, Any]:
     text_lower = text.lower()
-    flagged = [kw for kw in _CRITICAL_KW + _REJECT_KW + _ESCALATE_KW if kw in text_lower]
+    all_kws = []
+    for kws in _BASELINE_RULES:
+        all_kws.extend(kws[0])
+    flagged = [kw for kw in all_kws if kw in text_lower][:5]
 
-    if any(kw in text_lower for kw in _CRITICAL_KW):
-        decision, iab, garm, risk, confidence = (
-            "REJECT", "IAB_HATE_SPEECH", "GARM_HATE_SPEECH", "CRITICAL", 0.9)
-    elif any(kw in text_lower for kw in _REJECT_KW):
-        decision, iab, garm, risk, confidence = (
-            "REJECT", "IAB_PROFANITY", "GARM_OBSCENITY_PROFANITY", "HIGH", 0.75)
-    elif any(kw in text_lower for kw in _ESCALATE_KW):
-        decision, iab, garm, risk, confidence = (
-            "ESCALATE", "IAB_CONTROVERSIAL", "GARM_SAFE", "MEDIUM", 0.6)
-    else:
-        decision, iab, garm, risk, confidence = (
-            "APPROVE", "IAB_SAFE", "GARM_SAFE", "LOW", 0.8)
+    for keywords, decision, iab, garm, risk, age, confidence in _BASELINE_RULES:
+        if any(kw in text_lower for kw in keywords):
+            reason_action = "rejected" if decision == "REJECT" else "escalated"
+            reasoning = (
+                f"Keyword baseline {reason_action} this {content_type or 'content'}. "
+                f"Flagged elements: {', '.join(flagged[:3]) if flagged else 'none'}. "
+                f"Category: {iab} / {garm}. Risk assessment: {risk}. "
+                f"Platform: {platform or 'unknown'}. Age rating: {age}. "
+                f"This content violates brand safety guidelines."
+            )
+            return {
+                "decision": decision, "iab_category": iab, "garm_category": garm,
+                "risk_level": risk, "age_rating": age,
+                "reasoning": reasoning[:500],
+                "confidence": confidence, "flagged_elements": flagged,
+            }
 
     reasoning = (
-        f"Keyword scan: {'flagged ' + str(flagged[:3]) if flagged else 'no red-flag keywords'}. "
-        f"Heuristic decision."
+        f"Keyword baseline approved this {content_type or 'content'}. "
+        f"No harmful signals detected in keyword scan. "
+        f"Platform: {platform or 'unknown'}. Content appears brand-safe. "
+        f"No profanity, violence, hate speech, or misinformation detected."
     )
     return {
-        "decision": decision, "iab_category": iab, "garm_category": garm,
-        "risk_level": risk, "reasoning": reasoning, "confidence": confidence,
-        "flagged_elements": flagged[:5],
+        "decision": "APPROVE", "iab_category": "IAB_SAFE", "garm_category": "GARM_SAFE",
+        "risk_level": "LOW", "age_rating": "ALL_AGES",
+        "reasoning": reasoning,
+        "confidence": 0.7, "flagged_elements": [],
     }
 
 
@@ -100,6 +128,8 @@ def baseline_agent(text: str, content_type: str = "", platform: str = "") -> Dic
 def get_tasks(n: int = 5, difficulty: Optional[str] = None, seed: Optional[int] = None) -> Dict[str, Any]:
     if not 1 <= n <= 50:
         raise HTTPException(status_code=400, detail="n must be between 1 and 50")
+    if seed is not None and not (0 <= seed <= 2**31 - 1):
+        raise HTTPException(status_code=400, detail="seed must be between 0 and 2147483647")
     pool = _filter_by_difficulty(CONTENT_ITEMS, difficulty)
     sample = random.Random(seed).sample(pool, min(n, len(pool)))
     return {"tasks": [_strip_gold_labels(item) for item in sample], "count": len(sample), "total_available": len(pool)}
@@ -111,7 +141,8 @@ class GraderRequest(BaseModel):
     iab_category: str = Field(...)
     garm_category: str = Field(...)
     risk_level: str = Field(...)
-    reasoning: str = Field(...)
+    age_rating: str = Field(default="TEEN")
+    reasoning: str = Field(..., min_length=10, max_length=500)
     confidence: float = Field(..., ge=0.0, le=1.0)
     flagged_elements: List[str] = Field(default_factory=list)
     steps_taken: int = Field(default=1, ge=1, le=3)
@@ -131,19 +162,30 @@ def grader_endpoint(request: GraderRequest) -> Dict[str, Any]:
 
 
 @app.get("/baseline", tags=["Hackathon"])
-def baseline_demo(content_id: Optional[str] = None, seed: Optional[int] = 42) -> Dict[str, Any]:
+def baseline_demo(content_id: Optional[str] = None, seed: Optional[int] = None) -> Dict[str, Any]:
     item = _lookup_content(content_id) if content_id else random.Random(seed).choice(CONTENT_ITEMS)
     action = baseline_agent(item["content_text"])
     total_reward, scores, feedback = grade(action, item, steps_taken=1)
     return {
         "content_id": item["content_id"], "content_text": item["content_text"],
         "difficulty": item["difficulty"], "baseline_action": action,
-        "gold_decision": item["gold_decision"], "scores": scores,
-        "total_reward": total_reward, "feedback": feedback,
+        "scores": scores, "total_reward": total_reward, "feedback": feedback,
     }
 
 
 _AGENTS = {"smart": smart_agent, "baseline": baseline_agent}
+
+
+class AnalyzeRequest(BaseModel):
+    content_text: str = Field(..., min_length=1, max_length=5000)
+    content_type: str = Field(default="post", pattern=r"^(post|comment|caption|bio|reel|story|thread)$")
+    platform: str = Field(default="social_media", pattern=r"^(instagram|tiktok|youtube|x|facebook|reddit|threads|linkedin|social_media)$")
+
+
+@app.post("/analyze", tags=["Hackathon"])
+def analyze_content(request: AnalyzeRequest) -> Dict[str, Any]:
+    result = smart_agent(request.content_text, request.content_type, request.platform)
+    return {"content_text": request.content_text, "analysis": result}
 
 
 @app.get("/evaluate", tags=["Hackathon"])

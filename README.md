@@ -1,3 +1,13 @@
+---
+title: Brand-Safe Ad Review
+emoji: 🛡️
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Brand-Safe Ad Review Environment
 
 An OpenEnv RL environment for UGC content moderation. Agents classify posts using **IAB Content Taxonomy 3.0** and **GARM Brand Safety Floor** standards, deciding to approve, reject, or escalate. Multi-step episodes let agents request author history and community signals before deciding.
@@ -29,12 +39,13 @@ Fewer steps = higher efficiency score. Easy items should be nailed in one step.
 
 | Component | Weight | Signal |
 |-----------|--------|--------|
-| Decision accuracy | 40% | Correct APPROVE/REJECT/ESCALATE |
-| Category accuracy | 30% | Correct IAB + GARM |
-| Reasoning quality | 20% | Length + flagged elements |
-| Efficiency | 10% | Confidence calibration × step-efficiency |
+| Decision accuracy | 35% | Correct APPROVE/REJECT/ESCALATE (graded adjacency) |
+| Category accuracy | 25% | IAB (40%) + GARM (40%) + risk proximity (20%) |
+| Reasoning quality | 20% | Length + flagged elements + domain-specific terms |
+| Step efficiency | 10% | Fewer steps = higher score |
+| Calibration | 10% | Confidence aligned with correctness (penalizes overconfident wrong answers) |
 
-Step-efficiency: 1 step → 1.0×, 2 steps → 0.7×, 3 steps → 0.4×. Hard tasks get a 1.1× difficulty multiplier.
+Adjacency: REJECT↔ESCALATE gets 0.4 partial credit, APPROVE↔ESCALATE gets 0.15. Step-efficiency: 1 step → 1.0×, 2 → 0.7×, 3 → 0.4×. Hard tasks get 1.1× multiplier.
 
 ## Tasks (3 tiers, 50 items)
 
@@ -61,7 +72,7 @@ Each item has gold labels, context layers, and deterministic grading.
 **Observation** (`AdReviewObservation`):
 - Content fields: `content_id`, `content_text`, `content_type`, `platform`, `difficulty`
 - Episode state: `step_number`, `max_steps`, `additional_context`
-- Scoring: `score_decision`, `score_category`, `score_reasoning`, `score_efficiency`, `total_score`
+- Scoring: `score_decision`, `score_category`, `score_reasoning`, `score_efficiency`, `score_calibration`, `total_score`
 - Feedback: `feedback`, `gold_decision`, `gold_iab_category`, `gold_garm_category`
 
 ## Quick Start
@@ -69,19 +80,36 @@ Each item has gold labels, context layers, and deterministic grading.
 ### Docker (recommended)
 
 ```bash
+git clone https://github.com/Tnmae/openenv-meta.git
+cd openenv-meta
 docker build -t ad-review-env .
 docker run -p 8000:8000 ad-review-env
 ```
 
-### Local
+### Local (pip)
 
 ```bash
-cd ad_review_env
-uv pip install -e "."
+git clone https://github.com/Tnmae/openenv-meta.git
+cd openenv-meta/ad_review_env
+pip install -e ".[inference]"
 uvicorn server.app:app --port 8000
 ```
 
-Then: [localhost:8000/web](http://localhost:8000/web) for the dashboard, [localhost:8000/docs](http://localhost:8000/docs) for API docs.
+### Local (uv)
+
+```bash
+git clone https://github.com/Tnmae/openenv-meta.git
+cd openenv-meta/ad_review_env
+uv pip install --system -e ".[inference]"
+uvicorn server.app:app --port 8000
+```
+
+**Requirements:** Python ≥ 3.10, pip or uv. Docker alternative needs only Docker.
+
+Once running, visit:
+- Dashboard: [localhost:8000/web](http://localhost:8000/web)
+- API docs: [localhost:8000/docs](http://localhost:8000/docs)
+- Health check: [localhost:8000/health](http://localhost:8000/health)
 
 ## API Endpoints
 
@@ -94,40 +122,82 @@ Then: [localhost:8000/web](http://localhost:8000/web) for the dashboard, [localh
 | `/tasks` | GET | Fetch content items for evaluation |
 | `/grader` | POST | Grade a decision against gold labels |
 | `/evaluate` | GET | Batch evaluation (smart or baseline agent) |
+| `/analyze` | POST | Classify arbitrary text with the smart agent |
 | `/baseline` | GET | Baseline agent demo |
 | `/web` | GET | Interactive dashboard |
 | `/schema` | GET | Action/observation JSON schemas |
 | `/docs` | GET | OpenAPI documentation |
 
-## Inference
+## Running Inference
+
+The inference script runs episodes using the standard `POST /reset` → `POST /step` loop.
+
+### Environment Variables
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `API_BASE_URL` | Yes | OpenAI-compatible API endpoint | `https://router.huggingface.co/v1` |
+| `MODEL_NAME` | Yes | Model identifier (e.g. `qwen2.5-coder:7b`) | — |
+| `HF_TOKEN` or `API_KEY` | Yes | API authentication key | — |
+| `ENV_URL` | No | Environment server URL | `http://localhost:8000` |
+
+### With HuggingFace Router
 
 ```bash
 export API_BASE_URL="https://router.huggingface.co/v1"
-export MODEL_NAME="deepseek/deepseek-r1-0528"
-export HF_TOKEN="your-token"
-export ENV_URL="https://tnmae-openenv-ad-review.hf.space"
-
-pip install openai requests
+export MODEL_NAME="deepseek-ai/DeepSeek-R1"
+export HF_TOKEN="hf_your_token"
+export ENV_URL="http://localhost:8000"
 python inference.py
 ```
 
-The script fetches tasks, calls the LLM for each, grades via `/grader`, and reports scores.
+### With Local Ollama
+
+```bash
+# Install and run a model first: ollama pull qwen2.5-coder:7b
+export API_BASE_URL="http://localhost:11434/v1"
+export API_KEY="ollama"
+export MODEL_NAME="qwen2.5-coder:7b"
+export ENV_URL="http://localhost:8000"
+python inference.py
+```
+
+### With Any OpenAI-Compatible API
+
+```bash
+export API_BASE_URL="https://api.openai.com/v1"  # or any compatible endpoint
+export API_KEY="sk-your-key"
+export MODEL_NAME="gpt-4o"
+export ENV_URL="http://localhost:8000"
+python inference.py
+```
+
+### Windows (PowerShell)
+
+```powershell
+$env:API_BASE_URL = "http://localhost:11434/v1"
+$env:API_KEY = "ollama"
+$env:MODEL_NAME = "qwen2.5-coder:7b"
+$env:ENV_URL = "http://localhost:8000"
+python inference.py
+```
 
 ## Baseline Scores
 
 | Agent | Mean Score | Accuracy | Easy | Medium | Hard |
 |-------|-----------|----------|------|--------|------|
 | Keyword baseline | 0.52 | 53% | 0.55 | 0.49 | 0.51 |
-| Smart rule-based | 0.996 | 100% | 0.99 | 0.99 | 1.00 |
-| Qwen 2.5-coder 7B | 0.89 | 93% | 0.86 | 0.87 | 0.94 |
+| Smart rule-based | 0.983 | 100% | 0.96 | 0.99 | 1.00 |
+| Qwen 2.5-coder 7B | 0.847 | 76% | 0.91 | 0.85 | 0.78 |
 
 ## Tests
 
 ```bash
+pip install pytest
 python -m pytest tests/ -v
 ```
 
-83 tests covering data integrity, grader logic, agent decisions, model validation, and multi-step episodes.
+141 tests covering data integrity, grader logic (5 components + calibration), agent decisions, model validation, edge cases, and multi-step episodes.
 
 ## Project Structure
 
