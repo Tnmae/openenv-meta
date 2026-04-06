@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir uv
 
-COPY ad_review_env/pyproject.toml .
+COPY pyproject.toml .
 COPY ad_review_env/__init__.py .
 COPY ad_review_env/models.py .
 COPY ad_review_env/data.py .
@@ -17,7 +17,7 @@ COPY openenv.yaml .
 COPY inference.py .
 
 # Force cache bust on code changes
-RUN echo "build-v7"
+RUN echo "build-v8"
 
 RUN uv pip install --system -e ".[inference]" || pip install openenv-core openai requests
 
