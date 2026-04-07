@@ -209,3 +209,8 @@ __marimo__/
 PROJECT_INFO.md
 _run_qwen.py
 _upload_hf.py
+.agent/
+ad_review_env/server/text
+hackathon_guidelines_extracted.txt
+me.pdf
+message.txt
