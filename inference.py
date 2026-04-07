@@ -23,7 +23,7 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
 
-TASK_NAME = "ad_review"
+TASK_IDS = ["easy", "medium", "hard"]
 BENCHMARK = "ad_review_env"
 TEMPERATURE = 0.0
 MAX_TOKENS = 512
@@ -140,10 +140,10 @@ def log_step(step: int, action: str, reward: float, done: bool, error: Optional[
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(
-        f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}",
+        f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}",
         flush=True,
     )
 
@@ -325,36 +325,42 @@ def run_evaluation(client: OpenAI, env_url: str) -> Dict[str, Any]:
     except Exception as e:
         raise RuntimeError(f"Cannot reach environment at {env_url}: {e}") from e
 
-    resp = requests.get(f"{env_url}/tasks", params={"n": 50, "seed": 42}, timeout=30)
-    resp.raise_for_status()
-    n_tasks = resp.json()["count"]
-
-    log_start(TASK_NAME, BENCHMARK, MODEL_NAME)
-
     scores_by_difficulty: Dict[str, List[float]] = {"easy": [], "medium": [], "hard": []}
     all_scores: List[float] = []
     results: List[Dict[str, Any]] = []
-    total_steps = 0
 
-    for i in range(1, n_tasks + 1):
-        episode = run_episode(client, env_url, episode_num=i)
-        score = episode["reward"]
-        diff = episode["difficulty"]
-        all_scores.append(score)
-        scores_by_difficulty[diff].append(score)
-        total_steps += episode["steps"]
+    for task_id in TASK_IDS:
+        resp = requests.get(f"{env_url}/tasks", params={"n": 50, "difficulty": task_id, "seed": 42}, timeout=30)
+        resp.raise_for_status()
+        n_tasks = resp.json()["count"]
+        
+        if n_tasks == 0:
+            continue
 
-        results.append({
-            "content_id": episode["content_id"],
-            "difficulty": diff,
-            "decision": episode["decision"],
-            "gold_decision": episode["gold_decision"],
-            "score": score,
-        })
+        log_start(task_id, BENCHMARK, MODEL_NAME)
 
-    mean_score = statistics.mean(all_scores) if all_scores else 0.0
-    success = mean_score >= SUCCESS_SCORE_THRESHOLD
-    log_end(success, total_steps, mean_score, all_scores)
+        task_scores: List[float] = []
+        total_steps = 0
+
+        for i in range(1, n_tasks + 1):
+            episode = run_episode(client, env_url, episode_num=i)
+            score = episode["reward"]
+            diff = episode["difficulty"]
+            all_scores.append(score)
+            task_scores.append(score)
+            scores_by_difficulty[diff].append(score)
+            total_steps += episode["steps"]
+
+            results.append({
+                "content_id": episode["content_id"],
+                "difficulty": diff,
+                "decision": episode["decision"],
+                "gold_decision": episode["gold_decision"],
+                "score": score,
+            })
+
+        task_success = statistics.mean(task_scores) >= SUCCESS_SCORE_THRESHOLD if task_scores else False
+        log_end(task_success, total_steps, task_scores)
 
     return {"results": results, "all_scores": all_scores, "scores_by_difficulty": scores_by_difficulty}
 

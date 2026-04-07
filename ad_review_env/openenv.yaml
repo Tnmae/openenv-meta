@@ -15,12 +15,21 @@ tasks:
   - id: easy
     description: "Clear-cut content moderation (15 items) — obvious safe/unsafe signals"
     difficulty: easy
+    grader:
+      type: llm
+      prompt_template: "Score this response 0.0 to 1.0 based on accuracy..."
     count: 15
   - id: medium
     description: "Context-dependent moderation (18 items) — alcohol, politics, gambling, health claims"
     difficulty: medium
+    grader:
+      type: llm
+      prompt_template: "Score this response 0.0 to 1.0 based on accuracy..."
     count: 18
   - id: hard
     description: "Subtle edge cases (17 items) — satire, advocacy, coded language, recovery narratives"
     difficulty: hard
+    grader:
+      type: llm
+      prompt_template: "Score this response 0.0 to 1.0 based on accuracy..."
     count: 17
