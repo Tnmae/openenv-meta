@@ -12,15 +12,27 @@ version: "1.0.0"
 author: "Meta OpenEnv Hackathon"
 
 tasks:
-  - id: easy
-    description: "Clear-cut content moderation (15 items) — obvious safe/unsafe signals"
+  - id: safe_content
+    description: "Clearly brand-safe content — food, fitness, travel, lifestyle posts. Agent must APPROVE without over-flagging."
     difficulty: easy
-    count: 15
-  - id: medium
-    description: "Context-dependent moderation (18 items) — alcohol, politics, gambling, health claims"
+    count: 8
+  - id: harmful_content
+    description: "Clearly harmful content — hate speech, explicit threats, CSAM signals, graphic violence. Agent must REJECT."
+    difficulty: easy
+    count: 7
+  - id: contextual_moderation
+    description: "Alcohol, gambling references, political commentary, health claims requiring context. Agent decides APPROVE/ESCALATE/REJECT."
     difficulty: medium
-    count: 18
-  - id: hard
-    description: "Subtle edge cases (17 items) — satire, advocacy, coded language, recovery narratives"
+    count: 10
+  - id: platform_sensitive
+    description: "Content acceptable on some platforms (Reddit/X) but not others (TikTok/LinkedIn). Platform-aware moderation."
+    difficulty: medium
+    count: 8
+  - id: coded_language
+    description: "Coded extremist language, dog whistles, MLM recruitment, subtle misinformation without obvious keywords."
     difficulty: hard
-    count: 17
+    count: 9
+  - id: edge_cases
+    description: "Satire, recovery narratives, professional advocacy, figurative language — highest nuance required."
+    difficulty: hard
+    count: 8

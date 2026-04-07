@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv
+RUN pip install --no-cache-dir openenv-core openai requests fastapi uvicorn pydantic
 
 COPY pyproject.toml .
 COPY ad_review_env/__init__.py .
@@ -17,9 +17,7 @@ COPY openenv.yaml .
 COPY inference.py .
 
 # Force cache bust on code changes
-RUN echo "build-v8"
-
-RUN uv pip install --system -e ".[inference]" || pip install openenv-core openai requests
+RUN echo "build-v9"
 
 EXPOSE 8000
 
