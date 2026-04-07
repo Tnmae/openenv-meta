@@ -167,7 +167,8 @@ def grade(
         + weights["efficiency"] * efficiency_score
         + weights["calibration"] * calibration_score
     )
-    total = min(1.0, max(0.0, raw_total * difficulty_multiplier))
+    # Clamp to (0, 1) exclusive — validator rejects exactly 0.0 or 1.0
+    total = min(0.999, max(0.001, raw_total * difficulty_multiplier))
 
     component_scores = {
         "decision": round(weights["decision"] * decision_score, 4),
